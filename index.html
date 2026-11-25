@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>冥王星的心跳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500&family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f7efe9;--dim:rgba(247,239,233,.52);--rose:#ffc2cc;--night:#05040b;color-scheme:dark}
+html,body{margin:0;height:100%;background:var(--night);overflow:hidden;color:var(--ink);font-family:'Noto Serif SC',serif;-webkit-font-smoothing:antialiased}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.layer{position:fixed;pointer-events:none;z-index:5}
+#lyric{left:0;right:0;bottom:12vh;height:3em}
+#shade{left:0;right:0;bottom:0;height:34vh;background:linear-gradient(transparent,rgba(4,2,10,.42));z-index:4}
+#lyric .row{position:absolute;left:0;right:0;bottom:0;text-align:center;padding:0 16px;font-weight:300;font-size:clamp(17px,2.35vw,34px);letter-spacing:.3em;line-height:1.5;text-shadow:0 0 22px rgba(255,160,185,.38),0 1px 2px rgba(0,0,0,.55);transition:opacity 1.1s ease,filter 1.1s ease,transform 1.1s ease}
+#lyric .row.out{opacity:0;filter:blur(10px);transform:translateY(-.5em)}
+#lyric .ch{display:inline-block;opacity:0;filter:blur(9px);transform:translateY(.4em);animation:chIn 1.25s cubic-bezier(.2,.7,.2,1) forwards}
+#lyric .gap{display:inline-block;width:1.2em}
+@keyframes chIn{to{opacity:1;filter:blur(0);transform:none}}
+#sec{display:none;left:28px;top:24px;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;letter-spacing:.18em;color:var(--dim);transition:opacity 1s}
+#sec b{font-family:'Noto Serif SC',serif;font-style:normal;font-weight:300;letter-spacing:.35em;margin-left:.6em;font-size:12px}
+#hud{left:50%;top:50%;transform:translate(-50%,-50%);width:min(84vh,84vw);height:min(84vh,84vw);font-family:'Cormorant Garamond',serif;font-size:13px;letter-spacing:.25em;color:rgba(200,225,255,.75);opacity:0;transition:opacity .6s}
+#hud .a{position:absolute;left:4%;top:12%}
+#hud .b{position:absolute;right:4%;bottom:12%;text-align:right}
+#counter{left:0;right:0;top:13vh;text-align:center;opacity:0;transition:opacity .8s;font-weight:300}
+#counter .n{font-family:'Cormorant Garamond',serif;font-size:clamp(34px,5vw,64px);letter-spacing:.06em;color:#bfe1ff;text-shadow:0 0 24px rgba(120,190,255,.6)}
+#counter .l{font-size:13px;letter-spacing:.4em;color:var(--dim);margin-top:4px}
+#title,#endcard{inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity 1.6s ease}
+.t1{font-weight:300;font-size:clamp(36px,6.4vw,92px);letter-spacing:.42em;margin-right:-.42em;text-shadow:0 0 40px rgba(255,170,190,.45)}
+.t2{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(13px,1.3vw,18px);letter-spacing:.6em;margin-top:1.4em;color:var(--dim)}
+.t3{font-size:12px;letter-spacing:.35em;color:var(--dim);margin-top:2.6em;font-weight:300}
+#start{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(10,6,22,.25),rgba(4,3,10,.82));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);transition:opacity 1.2s}
+#start.hide{opacity:0;pointer-events:none}
+#go{margin-top:3.2em;width:84px;height:84px;border-radius:50%;border:1px solid rgba(255,220,226,.55);background:rgba(255,200,210,.06);color:var(--ink);font:300 14px 'Noto Serif SC',serif;letter-spacing:.3em;padding-left:.3em;cursor:pointer;transition:all .5s;box-shadow:0 0 30px rgba(255,150,180,.15)}
+#go:hover{background:rgba(255,200,210,.16);box-shadow:0 0 50px rgba(255,150,180,.4);transform:scale(1.05)}
+#ctl{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;align-items:center;gap:14px;padding:14px max(22px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px));background:linear-gradient(transparent,rgba(0,0,0,.5));opacity:0;transition:opacity .5s;font:12px 'Cormorant Garamond',serif;letter-spacing:.12em;color:var(--dim)}
+#ctl.show{opacity:1}
+#ctl button{background:none;border:0;color:var(--ink);font-size:16px;cursor:pointer;width:28px;opacity:.85}
+#ctl input{flex:1;accent-color:#ffb8c6;height:2px}
+@media (max-width:640px){#sec{left:16px;top:16px}#lyric .row{letter-spacing:.16em}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="sec" class="layer"></div>
+<div id="hud" class="layer"><div class="a">PLANET X<br>1930 · 02 · 18</div><div class="b">LOWELL OBS.<br>MAG 15.0</div></div>
+<div id="counter" class="layer"><div class="n">0</div><div class="l">地球公转圈数 · 冥王星才走完一圈</div></div>
+<div id="title" class="layer"><div class="t1">冥王星的心跳</div><div class="t2">THE HEARTBEAT OF PLUTO</div></div>
+<div id="endcard" class="layer"><div class="t1">冥王星的心跳</div><div class="t2">PLUTO &amp; CHARON</div><div class="t3">它们彼此潮汐锁定 · 永远以同一面相望</div></div>
+<div id="shade" class="layer"></div><div id="lyric" class="layer"></div>
+<div id="start"><div class="t1">冥王星的心跳</div><div class="t2">THE HEARTBEAT OF PLUTO</div><button id="go">进入</button><div class="t3">建议戴耳机 · F 全屏 · 空格 暂停 · ← → 快进</div></div>
+<div id="ctl"><button id="pp">❚❚</button><span id="tm">0:00</span><input id="sk" type="range" min="0" max="240" step="0.05" value="0"><span id="dur">4:00</span><button id="mu">♪</button><button id="fs">⤢</button></div>
+
+<script type="module">
+import * as THREE from 'three';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {AfterimagePass} from 'three/addons/postprocessing/AfterimagePass.js';
+import {ShaderPass} from 'three/addons/postprocessing/ShaderPass.js';
+
+/* =========================================================
+   基础工具
+   ========================================================= */
+const D2R=Math.PI/180;
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lerp=(a,b,u)=>a+(b-a)*u;
+const io=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+const eo=u=>1-Math.pow(1-u,3);
+const sstep=(a,b,x)=>{const u=clamp((x-a)/(b-a));return u*u*(3-2*u)};
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const add=(a,x,y,z)=>V(a.x+x,a.y+y,a.z+z);
+const vl=(a,b,u)=>a.clone().lerp(b,u);
+// 方位：az=0 指向 +X（心形所在一侧，正对卡戎），az=90 指向 -Z；el 向上
+const sph=(c,r,az,el)=>{az*=D2R;el*=D2R;return V(c.x+r*Math.cos(el)*Math.cos(az),c.y+r*Math.sin(el),c.z-r*Math.cos(el)*Math.sin(az))};
+let rs=7;const rnd=()=>{rs=(rs*16807)%2147483647;return (rs-1)/2147483646};
+
+// 系统布局（共转参照系）：质心在原点，两者沿 X 轴相望
+const O=V(0,0,0), PL=V(-0.76,0,0), CH=V(6.24,0,0), MID=V(2.74,0,0);
+const R_CH=0.52;
+
+/* =========================================================
+   GLSL 片段
+   ========================================================= */
+const NOISE=`
+vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 permute(vec4 x){return mod289(((x*34.0)+10.0)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+float snoise(vec3 v){
+  const vec2 C=vec2(1.0/6.0,1.0/3.0);const vec4 D=vec4(0.0,0.5,1.0,2.0);
+  vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.0-g;vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);
+  vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
+  i=mod289(i);
+  vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+  float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;
+  vec4 j=p-49.0*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.0-abs(x)-abs(y);
+  vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0;vec4 s1=floor(b1)*2.0+1.0;vec4 sh=-step(h,vec4(0.0));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+  vec4 m=max(0.5-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);m=m*m;
+  return 105.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+}
+float fbm3(vec3 p){float s=0.,a=.5;for(int i=0;i<3;i++){s+=a*snoise(p);p=p*2.07+vec3(3.1,1.7,5.3);a*=.5;}return s;}
+float fbm5(vec3 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*snoise(p);p=p*2.03+vec3(3.1,1.7,5.3);a*=.5;}return s;}
+float fbm7(vec3 p){float s=0.,a=.5;for(int i=0;i<7;i++){s+=a*snoise(p);p=p*2.01+vec3(3.1,1.7,5.3);a*=.5;}return s;}
+vec3 hash33(vec3 p){p=fract(p*vec3(.1031,.1030,.0973));p+=dot(p,p.yxz+33.33);return fract((p.xxy+p.yxx)*p.zyx);}
+vec2 voro(vec3 x){vec3 p=floor(x);vec3 f=fract(x);float d1=8.,d2=8.;
+  for(int k=-1;k<=1;k++)for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){
+    vec3 b=vec3(float(i),float(j),float(k));vec3 r=b-f+hash33(p+b);float d=dot(r,r);
+    if(d<d1){d2=d1;d1=d;}else if(d<d2){d2=d;}}
+  return vec2(sqrt(d1),sqrt(d2));}
+`;
+const HEART=`
+float dot2(vec2 v){return dot(v,v);}
+float sdHeart(vec2 p){p.x=abs(p.x);
+  if(p.y+p.x>1.0)return sqrt(dot2(p-vec2(0.25,0.75)))-sqrt(2.0)/4.0;
+  return sqrt(min(dot2(p-vec2(0.0,1.0)),dot2(p-0.5*max(p.x+p.y,0.0))))*sign(p.x-p.y);}
+float heartSD(vec3 n){
+  vec2 p=vec2(-n.z,n.y)/(1.0+max(n.x,-0.9));
+  p*=2.05;
+  p+=0.06*vec2(snoise(n*5.0),snoise(n*5.0+11.0))+0.022*vec2(snoise(n*15.0+3.0),snoise(n*15.0+21.0));
+  p.y+=0.52;
+  p.x*=(p.x<0.0)?0.92:1.05;
+  return sdHeart(p);
+}
+`;
+const PLANET_VS=`
+varying vec3 vObj;varying vec3 vWorld;
+void main(){vObj=position;vec4 w=modelMatrix*vec4(position,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`;
+
+/* ---------- 冥王星 ---------- */
+const PLUTO_FS=`
+uniform vec3 uSunDir,uSunCol,uAmbCol;uniform float uSunInt,uTime,uHeart,uBeat,uRipR,uRipA;uniform mat3 uRot;
+varying vec3 vObj;varying vec3 vWorld;
+${NOISE}${HEART}
+float hgt(vec3 n,float hin,float left){
+  float h=fbm5(n*5.0)*0.55+fbm3(n*21.0)*0.22;
+  float rg=1.0-abs(snoise(n*9.0));h+=rg*rg*0.25*(1.0-hin);
+  if(hin*left>0.02){vec2 v=voro(n*15.0);float cells=smoothstep(0.0,0.3,v.y-v.x);
+    h=mix(h,0.035*cells+0.015*snoise(n*80.0)+0.03*fbm3(n*30.0),hin*left);}
+  else{h=mix(h,h*0.35+0.05*snoise(n*60.0),hin);}
+  return h;}
+void main(){
+  vec3 n=normalize(vObj);
+  float sd=heartSD(n);
+  float front=smoothstep(-0.05,0.3,n.x);
+  float hin=smoothstep(0.03,-0.03,sd)*front;
+  float left=smoothstep(-0.05,0.08,n.z);
+  vec3 t1=normalize(cross(n,normalize(vec3(0.3,0.9,0.31))));vec3 t2=cross(n,t1);
+  float e=0.0022;
+  float h0=hgt(n,hin,left),h1=hgt(normalize(n+t1*e),hin,left),h2=hgt(normalize(n+t2*e),hin,left);
+  vec3 nb=normalize(n-0.03*((h1-h0)*t1+(h2-h0)*t2)/e);
+  // 反照率：红褐色托林 + 克苏鲁暗带 + 极冠 + 心形氮冰
+  float hc=fbm5(n*2.4+vec3(4.0));float hd=fbm3(n*10.0);
+  vec3 alb=mix(vec3(0.36,0.13,0.06),vec3(0.80,0.52,0.34),smoothstep(-0.4,0.5,hc+0.3*hd));
+  float belt=smoothstep(0.36,0.1,abs(n.y+0.06+0.15*hc))*smoothstep(0.55,-0.05,n.x+0.25*hc);
+  alb=mix(alb,vec3(0.14,0.045,0.03)*(0.8+0.4*hd),belt*0.9);
+  float pole=smoothstep(0.55,0.85,n.y+0.12*hc);
+  alb=mix(alb,vec3(0.86,0.78,0.64),pole*0.8);
+  vec3 ice=mix(vec3(0.90,0.86,0.86),vec3(0.99,0.97,0.98),0.5+0.5*fbm3(n*7.0));
+  ice=mix(ice,ice*vec3(1.0,0.93,0.9),(1.0-left)*0.6);
+  float frost=smoothstep(0.16,0.0,sd)*smoothstep(0.0,0.5,fbm3(n*14.0)+0.2)*front;
+  float iceAmt=max(hin,frost*0.7);
+  alb=mix(alb,ice*0.92,iceAmt);
+  if(hin*left>0.02){vec2 v=voro(n*15.0);float edge=1.0-smoothstep(0.0,0.05,v.y-v.x);alb*=1.0-0.06*edge*hin*left;}
+  iceAmt=max(iceAmt,pole*0.5);
+  // 光照
+  vec3 N=normalize(uRot*nb);vec3 Ng=normalize(uRot*n);
+  vec3 Vv=normalize(cameraPosition-vWorld);vec3 L=normalize(uSunDir);
+  float ndl=dot(N,L);float ndlG=dot(Ng,L);
+  float lit=clamp(ndl,0.0,1.0)*smoothstep(-0.06,0.12,ndlG);
+  vec3 col=alb*uSunCol*uSunInt*lit*0.95;
+  vec3 H=normalize(L+Vv);float nh=max(dot(N,H),0.0);
+  float sp=pow(nh,60.0)*0.4*iceAmt*lit;
+  float gl=smoothstep(0.72,0.95,snoise(n*900.0+Vv*3.0))*iceAmt*lit*pow(nh,6.0);
+  col+=uSunCol*uSunInt*(sp+gl*2.5);
+  col+=vec3(0.25,0.42,0.95)*0.32*exp(-pow((ndlG+0.03)/0.10,2.0))*uSunInt*(0.4+alb);
+  col+=alb*uAmbCol*(0.55+0.45*Ng.y);
+  float fr=pow(1.0-max(dot(Ng,Vv),0.0),4.0);
+  col+=vec3(0.3,0.5,1.0)*fr*0.35*max(ndlG+0.35,0.0)*uSunInt;
+  // 冰层下的心跳
+  float ang=acos(clamp(n.x,-1.0,1.0));
+  float veins=pow(1.0-abs(snoise(n*6.0+vec3(0.0,uTime*0.08,0.0))),6.0)+0.6*pow(1.0-abs(snoise(n*13.0-vec3(uTime*0.05))),8.0);
+  float core=hin*(0.35+0.65*smoothstep(0.0,-0.25,sd));
+  vec3 gcol=mix(vec3(1.0,0.26,0.40),vec3(1.0,0.72,0.50),clamp(veins*0.6,0.0,1.0));
+  float pulse=0.35+1.5*uBeat;
+  vec3 emit=gcol*uHeart*core*(0.12+veins*0.75)*pulse*0.62;
+  float ring=exp(-pow((ang-uRipR)/0.035,2.0))*uRipA;
+  emit+=vec3(1.0,0.48,0.55)*ring*uHeart*0.9*(0.35+hin);
+  emit*=mix(1.0,0.3,lit);
+  col+=emit;
+  gl_FragColor=vec4(col,1.0);
+}`;
+
+/* ---------- 卡戎 ---------- */
+const CHARON_FS=`
+uniform vec3 uSunDir,uSunCol,uAmbCol;uniform float uSunInt,uTide;uniform mat3 uRot;
+varying vec3 vObj;varying vec3 vWorld;
+${NOISE}
+float hgtC(vec3 n){
+  float h=fbm5(n*4.0)*0.5+fbm3(n*18.0)*0.2;
+  vec2 v=voro(n*6.0);float cr=v.x;
+  float gate=smoothstep(-0.3,0.2,snoise(n*2.7+7.0));
+  h+=(-smoothstep(0.34,0.0,cr)*0.6+exp(-pow((cr-0.36)/0.05,2.0))*0.28)*gate;
+  vec2 v2=voro(n*15.0);h+=(-smoothstep(0.3,0.0,v2.x)*0.25)*smoothstep(0.1,0.5,snoise(n*5.0));
+  float chs=exp(-pow((n.y-0.08-0.06*snoise(n*2.5))/0.03,2.0))*smoothstep(-0.2,0.4,n.z);
+  return h-chs*0.6;}
+void main(){
+  vec3 n=normalize(vObj);
+  vec3 t1=normalize(cross(n,normalize(vec3(0.3,0.9,0.31))));vec3 t2=cross(n,t1);
+  float e=0.003;float h0=hgtC(n),h1=hgtC(normalize(n+t1*e)),h2=hgtC(normalize(n+t2*e));
+  vec3 nb=normalize(n-0.05*((h1-h0)*t1+(h2-h0)*t2)/e);
+  float m=fbm5(n*3.0);
+  vec3 alb=mix(vec3(0.36,0.35,0.34),vec3(0.64,0.62,0.60),smoothstep(-0.4,0.5,m));
+  float cap=smoothstep(0.6,0.86,n.y+0.1*fbm3(n*5.0));
+  alb=mix(alb,vec3(0.38,0.15,0.08),cap*0.85);
+  vec3 N=normalize(uRot*nb);vec3 Ng=normalize(uRot*n);
+  vec3 Vv=normalize(cameraPosition-vWorld);vec3 L=normalize(uSunDir);
+  float lit=clamp(dot(N,L),0.0,1.0)*smoothstep(-0.05,0.1,dot(Ng,L));
+  vec3 col=alb*uSunCol*uSunInt*lit*0.95+alb*uAmbCol*(0.55+0.45*Ng.y);
+  float fr=pow(1.0-max(dot(Ng,Vv),0.0),3.0);
+  col+=vec3(1.0,0.45,0.55)*uTide*(pow(max(-n.x,0.0),2.0)*0.5+fr*1.6);
+  gl_FragColor=vec4(col,1.0);
+}`;
+
+/* ---------- 冥王星蓝色高层霾 ---------- */
+const ATM_VS=`varying vec3 vWorld;void main(){vec4 w=modelMatrix*vec4(position,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`;
+const ATM_FS=`
+uniform vec3 uCenter,uSunDir;uniform float uAtm,uSunInt;varying vec3 vWorld;
+void main(){
+  vec3 ro=cameraPosition-uCenter;vec3 rd=normalize(vWorld-cameraPosition);
+  float tca=-dot(ro,rd);vec3 pc=ro+rd*tca;float b=length(pc);float alt=b-1.0;vec3 up0=normalize(pc);
+  float dens;
+  if(alt>0.0){dens=exp(-alt/0.024)*(0.85+0.15*sin(alt*480.0+sin(dot(up0,vec3(9.0,7.0,5.0)))*2.0))+0.25*exp(-alt/0.07);}
+  else{dens=0.015+0.985*pow(b,22.0);}
+  vec3 L=normalize(uSunDir);vec3 up=normalize(pc);
+  float lit=smoothstep(-0.4,0.45,dot(up,L));
+  float fwd=pow(max(dot(rd,L),0.0),5.0);
+  float limb=alt>0.0?1.0:pow(b,22.0);
+  vec3 c=vec3(0.30,0.55,1.0)*(0.35*lit+2.4*fwd*limb)*dens;
+  gl_FragColor=vec4(c*uAtm*(0.15+0.85*uSunInt),1.0);
+}`;
+
+/* ---------- 天空：烘焙后的星云场 ---------- */
+const BAKE_FS=`
+varying vec3 vDir;${NOISE}
+void main(){vec3 d=normalize(vDir);
+  vec3 axis=normalize(vec3(0.3,1.0,0.2));
+  float band=exp(-pow(dot(d,axis)/0.34,2.0));
+  vec3 q=d*1.7+0.7*vec3(fbm5(d*2.0),fbm5(d*2.0+5.2),fbm5(d*2.0+9.1));
+  float a=smoothstep(-0.15,0.75,fbm7(q*1.5));
+  float b=smoothstep(0.0,0.85,fbm7(q*2.7+3.3));
+  float r=1.0-abs(fbm5(d*5.0+q*1.3));
+  float dust=smoothstep(0.55,0.95,r)*smoothstep(-0.1,0.4,fbm5(d*3.0+2.0));
+  gl_FragColor=vec4(a,b,dust,band);}`;
+const SKY_VS=`varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
+const SKY_FS=`
+uniform samplerCube uField;uniform vec3 uSunDir;uniform float uNeb,uWarm;uniform mat3 uSkyInv;varying vec3 vDir;
+void main(){vec3 d=normalize(vDir);vec4 f=textureCube(uField,d);
+  float w=uWarm*0.5+0.5;
+  vec3 base=mix(vec3(0.012,0.010,0.034),vec3(0.022,0.010,0.030),w);
+  vec3 rose=mix(vec3(0.40,0.13,0.48),vec3(0.92,0.34,0.30),w);
+  vec3 teal=mix(vec3(0.06,0.30,0.58),vec3(0.36,0.20,0.56),w);
+  vec3 c=base+rose*f.r*(0.25+0.75*f.a)*0.5+teal*f.g*(0.3+0.7*f.a)*0.34;
+  c+=vec3(0.95,0.85,0.8)*f.a*0.05*(0.4+f.r);
+  c*=1.0-0.78*f.b*(0.3+0.7*f.a);
+  vec3 sd=normalize(uSkyInv*uSunDir);float s=max(dot(d,sd),0.0);
+  c+=vec3(1.0,0.6,0.38)*pow(s,6.0)*0.22+vec3(1.0,0.78,0.55)*pow(s,60.0)*0.5;
+  gl_FragColor=vec4(c*uNeb,1.0);}`;
+
+/* ---------- 星星 ---------- */
+const STAR_VS=`attribute float aSize,aPhase;attribute vec3 aColor;uniform float uTime,uPR,uStars;varying vec3 vC;
+void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);gl_Position=projectionMatrix*mv;
+  float tw=0.72+0.28*sin(uTime*(0.8+aPhase*3.0)+aPhase*40.0);
+  gl_PointSize=aSize*uPR*(0.85+0.15*tw);vC=aColor*uStars*tw;}`;
+const STAR_FS=`varying vec3 vC;void main(){vec2 p=gl_PointCoord*2.0-1.0;float r=dot(p,p);
+  float a=exp(-r*5.0)*0.6+exp(-r*28.0)*1.6;gl_FragColor=vec4(vC*a,1.0);}`;
+
+/* ---------- 太阳（远处一颗极亮的星） ---------- */
+const BB_VS=`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`;
+const SUN_FS=`uniform float uInt,uVis,uTime;uniform vec3 uCol;varying vec2 vUv;
+void main(){vec2 p=vUv*2.0-1.0;float r=length(p);
+  float core=exp(-r*r*1400.0)*14.0+exp(-r*70.0)*1.4+exp(-r*12.0)*0.28+exp(-r*3.8)*0.07;
+  float a=atan(p.y,p.x);
+  float spikes=(pow(abs(cos(a*3.0+0.35)),90.0)*0.9+pow(abs(cos(a*2.0+1.2)),160.0)*0.5)*exp(-r*6.0);
+  float streak=exp(-abs(p.y)*150.0)*exp(-abs(p.x)*2.4)*0.6;
+  vec3 c=uCol*(core+spikes)+vec3(0.6,0.75,1.0)*streak;
+  gl_FragColor=vec4(c*uInt*uVis*smoothstep(1.0,0.75,r),1.0);}`;
+
+/* ---------- 通用粒子片元 ---------- */
+const SOFT_FS=`varying float vA;varying vec3 vC;void main(){vec2 q=gl_PointCoord*2.0-1.0;float d=dot(q,q);
+  gl_FragColor=vec4(vC*vA*(exp(-d*5.0)+exp(-d*30.0)),1.0);}`;
+const LINE_FS=`varying float vA;varying vec3 vC;void main(){gl_FragColor=vec4(vC*vA,1.0);}`;
+
+/* =========================================================
+   渲染器、场景
+   ========================================================= */
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'});
+const PR=Math.min(window.devicePixelRatio||1,1.5);
+renderer.setPixelRatio(PR);
+renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.NoToneMapping;
+
+const scene=new THREE.Scene();
+const orrery=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,0.01,6000);
+scene.add(camera);
+
+const add2=(o,parent=scene)=>{parent.add(o);return o};
+const addMat=(o)=>({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,...o});
+
+const G={uTime:{value:0},uPR:{value:PR},uPS:{value:500},uBeat:{value:0}};
+
+/* ---------- 星云烘焙 ---------- */
+const cubeRT=new THREE.WebGLCubeRenderTarget(768,{type:THREE.HalfFloatType,generateMipmaps:true,minFilter:THREE.LinearMipmapLinearFilter});
+{
+  const bs=new THREE.Scene();
+  bs.add(new THREE.Mesh(new THREE.SphereGeometry(5,64,32),new THREE.ShaderMaterial({vertexShader:SKY_VS,fragmentShader:BAKE_FS,side:THREE.BackSide})));
+  const cc=new THREE.CubeCamera(0.1,10,cubeRT);cc.update(renderer,bs);
+}
+const skyMat=new THREE.ShaderMaterial({vertexShader:SKY_VS,fragmentShader:SKY_FS,side:THREE.BackSide,depthWrite:false,
+  uniforms:{uField:{value:cubeRT.texture},uSunDir:{value:V(1,0,0)},uNeb:{value:1},uWarm:{value:0},uSkyInv:{value:new THREE.Matrix3()}}});
+const skyGeo=new THREE.SphereGeometry(1500,64,32);
+const skyRig=add2(new THREE.Group());const oskyRig=add2(new THREE.Group(),orrery);
+const sky=new THREE.Mesh(skyGeo,skyMat);sky.renderOrder=-10;sky.frustumCulled=false;skyRig.add(sky);
+const osky=new THREE.Mesh(skyGeo,skyMat);osky.renderOrder=-10;osky.frustumCulled=false;oskyRig.add(osky);
+
+/* ---------- 星空 ---------- */
+const starGeo=(()=>{const N=9000,pos=new Float32Array(N*3),sz=new Float32Array(N),ph=new Float32Array(N),col=new Float32Array(N*3);
+  const ax=V(0.3,1,0.2).normalize();const v=V(0,0,0);
+  const temps=[[0.7,0.8,1.0],[0.85,0.9,1.0],[1,1,1],[1,0.93,0.82],[1,0.8,0.62]];
+  for(let i=0;i<N;i++){
+    v.set(rnd()*2-1,rnd()*2-1,rnd()*2-1);if(v.lengthSq()>1||v.lengthSq()<1e-4){i--;continue}v.normalize();
+    if(rnd()<0.5){v.addScaledVector(ax,-v.dot(ax)*0.85).normalize();}
+    v.multiplyScalar(1200);pos.set([v.x,v.y,v.z],i*3);
+    sz[i]=1.1+Math.pow(rnd(),14)*9+rnd()*0.6;ph[i]=rnd();
+    const t=temps[Math.floor(Math.pow(rnd(),0.8)*5)];const b=0.35+rnd()*0.65;col.set([t[0]*b,t[1]*b,t[2]*b],i*3);
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.setAttribute('aSize',new THREE.BufferAttribute(sz,1));g.setAttribute('aPhase',new THREE.BufferAttribute(ph,1));g.setAttribute('aColor',new THREE.BufferAttribute(col,3));return g})();
+const starMat=new THREE.ShaderMaterial(addMat({vertexShader:STAR_VS,fragmentShader:STAR_FS,uniforms:{uTime:G.uTime,uPR:G.uPR,uStars:{value:1}}}));
+const stars=new THREE.Points(starGeo,starMat);stars.frustumCulled=false;stars.renderOrder=-9;skyRig.add(stars);
+const ostars=new THREE.Points(starGeo,starMat);ostars.frustumCulled=false;ostars.renderOrder=-9;oskyRig.add(ostars);
+
+/* ---------- 太阳 ---------- */
+const mkSun=()=>new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.ShaderMaterial(addMat({vertexShader:BB_VS,fragmentShader:SUN_FS,
+  uniforms:{uInt:{value:1},uVis:{value:1},uTime:G.uTime,uCol:{value:new THREE.Color(1.0,0.86,0.72)}}})));
+const sun=add2(mkSun());sun.renderOrder=5;sun.frustumCulled=false;
+
+/* ---------- 冥王星 + 卡戎 ---------- */
+const pivot=add2(new THREE.Group());
+const sunCol=new THREE.Color(1.0,0.93,0.86);
+const plutoU={uSunDir:{value:V(1,0,0)},uSunCol:{value:sunCol},uAmbCol:{value:new THREE.Color(0.05,0.04,0.08)},uSunInt:{value:1},uTime:G.uTime,
+  uHeart:{value:0},uBeat:G.uBeat,uRipR:{value:0},uRipA:{value:0},uRot:{value:new THREE.Matrix3()}};
+const pluto=new THREE.Mesh(new THREE.SphereGeometry(1,192,128),new THREE.ShaderMaterial({vertexShader:PLANET_VS,fragmentShader:PLUTO_FS,uniforms:plutoU}));
+pluto.position.copy(PL);pivot.add(pluto);
+const charonU={uSunDir:plutoU.uSunDir,uSunCol:{value:sunCol},uAmbCol:plutoU.uAmbCol,uSunInt:plutoU.uSunInt,uTide:{value:0},uRot:{value:new THREE.Matrix3()}};
+const charon=new THREE.Mesh(new THREE.SphereGeometry(1,128,96),new THREE.ShaderMaterial({vertexShader:PLANET_VS,fragmentShader:CHARON_FS,uniforms:charonU}));
+charon.position.copy(CH);charon.scale.setScalar(R_CH);charon.rotation.y=Math.PI;pivot.add(charon);
+const atmU={uCenter:{value:V()},uSunDir:plutoU.uSunDir,uAtm:{value:1},uSunInt:plutoU.uSunInt};
+const atm=new THREE.Mesh(new THREE.SphereGeometry(1.12,128,96),new THREE.ShaderMaterial(addMat({vertexShader:ATM_VS,fragmentShader:ATM_FS,uniforms:atmU})));
+pluto.add(atm);atm.renderOrder=2;
+
+/* ---------- 心形冰原取样（给粒子用） ---------- */
+function sdHeartJS(x,y){x=Math.abs(x);if(y+x>1)return Math.hypot(x-0.25,y-0.75)-Math.SQRT2/4;
+  const m=0.5*Math.max(x+y,0);return Math.sqrt(Math.min(x*x+(y-1)**2,(x-m)**2+(y-m)**2))*Math.sign(x-y);}
+function heartDir(){for(;;){const x=(rnd()*2-1)*0.75,y=rnd()*1.15-0.05;if(sdHeartJS(x,y)<-0.03){
+  const qx=x/(x<0?0.92:1.05)/2.05,qy=(y-0.52)/2.05;const s=qx*qx+qy*qy;return V((1-s)/(1+s),2*qy/(1+s),-2*qx/(1+s));}}}
+
+/* ---------- 心形上升的光尘 ---------- */
+const motes=(()=>{const N=1800,p=new Float32Array(N*3),s=new Float32Array(N*3);
+  for(let i=0;i<N;i++){const d=heartDir();p.set([d.x,d.y,d.z],i*3);s.set([rnd(),rnd(),rnd()],i*3)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('aSeed',new THREE.BufferAttribute(s,3));
+  const m=new THREE.ShaderMaterial(addMat({uniforms:{uTime:G.uTime,uBeat:G.uBeat,uPS:G.uPS,uAmt:{value:0}},fragmentShader:SOFT_FS,vertexShader:`
+  attribute vec3 aSeed;uniform float uTime,uAmt,uBeat,uPS;varying float vA;varying vec3 vC;
+  void main(){float life=fract(aSeed.x+uTime*(0.035+0.05*aSeed.y));
+    float r=1.012+life*(0.35+0.9*aSeed.z);vec3 p=normalize(position)*r;
+    p+=0.05*life*vec3(sin(uTime*0.6+aSeed.y*30.0),sin(uTime*0.5+aSeed.z*30.0),cos(uTime*0.7+aSeed.x*30.0));
+    vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;
+    float sz=(0.006+0.016*aSeed.z)*uPS/-mv.z;gl_PointSize=clamp(sz,1.0,40.0);
+    vA=uAmt*smoothstep(0.0,0.08,life)*(1.0-life)*(0.55+0.9*uBeat)*min(sz,1.0)*1.4;
+    vC=mix(vec3(1.0,0.42,0.55),vec3(1.0,0.82,0.6),aSeed.y);}`}));
+  const o=new THREE.Points(g,m);o.frustumCulled=false;pluto.add(o);return o})();
+
+/* ---------- 氮冰升华/凝结 ---------- */
+const sublim=(()=>{const N=5000,p=new Float32Array(N*3),s=new Float32Array(N*3);const v=V();
+  for(let i=0;i<N;i++){if(rnd()<0.6){v.copy(heartDir())}else{v.set(rnd()*2-1,rnd()*2-1,rnd()*2-1).normalize()}p.set([v.x,v.y,v.z],i*3);s.set([rnd(),rnd(),rnd()],i*3)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('aSeed',new THREE.BufferAttribute(s,3));
+  const m=new THREE.ShaderMaterial(addMat({uniforms:{uTime:G.uTime,uPS:G.uPS,uAmt:{value:0}},fragmentShader:SOFT_FS,vertexShader:`
+  attribute vec3 aSeed;uniform float uTime,uAmt,uPS;varying float vA;varying vec3 vC;
+  void main(){float ph=uTime*(0.25+0.5*aSeed.y)+aSeed.x*6.2832;float k=0.5+0.5*sin(ph);
+    vec3 p=normalize(position)*(1.004+0.07*aSeed.z*k);
+    vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;
+    float sz=(0.0025+0.004*aSeed.z)*uPS/-mv.z;gl_PointSize=clamp(sz,1.0,24.0);
+    vA=uAmt*(0.25+0.75*k)*(0.5+0.5*sin(uTime*7.0*aSeed.y+aSeed.z*40.0))*min(sz,1.0)*1.2;
+    vC=mix(vec3(0.7,0.85,1.0),vec3(1.0,0.95,0.95),aSeed.y);}`}));
+  const o=new THREE.Points(g,m);o.frustumCulled=false;pluto.add(o);return o})();
+
+/* ---------- 风 ---------- */
+const wind=(()=>{const N=1600,s=new Float32Array(N*8),e=new Float32Array(N*2);
+  for(let i=0;i<N;i++){const a=[rnd(),rnd(),rnd(),rnd()];s.set(a,i*8);s.set(a,i*8+4);e[i*2]=0;e[i*2+1]=1}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(N*6),3));
+  g.setAttribute('aSeed',new THREE.BufferAttribute(s,4));g.setAttribute('aEnd',new THREE.BufferAttribute(e,1));
+  const m=new THREE.ShaderMaterial(addMat({uniforms:{uTime:G.uTime,uAmt:{value:0}},fragmentShader:LINE_FS,vertexShader:`
+  attribute vec4 aSeed;attribute float aEnd;uniform float uTime,uAmt;varying float vA;varying vec3 vC;
+  void main(){float lat=(aSeed.x-0.5)*2.4+0.06*sin(uTime*0.3+aSeed.y*20.0);float sp=0.22+0.3*aSeed.z;
+    float lon=aSeed.y*6.2832+uTime*sp-aEnd*(0.05+0.12*aSeed.w);
+    float r=1.012+0.05*aSeed.w+0.004*sin(lon*30.0+aSeed.x*50.0);
+    vec3 p=vec3(cos(lat)*cos(lon),sin(lat),cos(lat)*sin(lon))*r;
+    gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);
+    float cyc=fract(aSeed.y*7.0+uTime*0.12*(0.5+aSeed.z));
+    vA=uAmt*(1.0-aEnd)*sin(cyc*3.1416)*0.6;vC=vec3(0.78,0.87,1.0);}`}));
+  const o=new THREE.LineSegments(g,m);o.frustumCulled=false;pluto.add(o);return o})();
+
+/* ---------- 对望的光线 ---------- */
+const TA=V(PL.x+1.02,0,0),TB=V(CH.x-R_CH-0.02,0,0);
+const threadU={uA:{value:TA},uB:{value:TB},uW:{value:0.028},uAmt:{value:0},uDraw:{value:1},uTime:G.uTime,uBeat:G.uBeat};
+const thread=(()=>{const S=96,pos=new Float32Array((S+1)*2*3),as=new Float32Array((S+1)*2),sd=new Float32Array((S+1)*2),idx=[];
+  for(let i=0;i<=S;i++){as[i*2]=as[i*2+1]=i/S;sd[i*2]=-1;sd[i*2+1]=1;if(i<S){const a=i*2;idx.push(a,a+1,a+2,a+1,a+3,a+2)}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('aS',new THREE.BufferAttribute(as,1));g.setAttribute('aSide',new THREE.BufferAttribute(sd,1));g.setIndex(idx);
+  const m=new THREE.ShaderMaterial(addMat({side:THREE.DoubleSide,uniforms:threadU,vertexShader:`
+  uniform vec3 uA,uB;uniform float uW;attribute float aS,aSide;varying float vS,vSide;
+  void main(){vec3 A=(modelMatrix*vec4(uA,1.0)).xyz,B=(modelMatrix*vec4(uB,1.0)).xyz;vec3 P=mix(A,B,aS);
+    vec3 dir=normalize(B-A);vec3 tc=normalize(cameraPosition-P);vec3 side=normalize(cross(dir,tc));
+    float w=uW*max(1.0,length(cameraPosition-P)*0.004);
+    P+=side*aSide*w;vS=aS;vSide=aSide;gl_Position=projectionMatrix*viewMatrix*vec4(P,1.0);}`,fragmentShader:`
+  uniform float uAmt,uDraw,uTime,uBeat;varying float vS,vSide;
+  void main(){float core=exp(-vSide*vSide*12.0);float glow=exp(-vSide*vSide*2.5)*0.28;
+    float vis=clamp(step(vS,uDraw*0.5+0.001)+step(1.0-uDraw*0.5-0.001,vS),0.0,1.0);
+    float pz=0.5+0.6*pow(0.5+0.5*sin(vS*26.0-uTime*2.6),8.0)+0.6*pow(0.5+0.5*sin(vS*26.0+uTime*2.6+1.3),8.0);
+    float ends=smoothstep(0.0,0.05,vS)*smoothstep(1.0,0.95,vS);
+    vec3 c=mix(vec3(1.0,0.5,0.6),vec3(1.0,0.84,0.62),vS)*(core*1.7+glow)*pz*(0.75+0.6*uBeat);
+    gl_FragColor=vec4(c*uAmt*vis*ends,1.0);}`}));
+  const o=new THREE.Mesh(g,m);o.frustumCulled=false;o.renderOrder=3;pivot.add(o);return o})();
+const threadP=(()=>{const N=700,p=new Float32Array(N*3),s=new Float32Array(N*3);for(let i=0;i<N;i++)s.set([rnd(),rnd(),rnd()],i*3);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('aSeed',new THREE.BufferAttribute(s,3));
+  const m=new THREE.ShaderMaterial(addMat({uniforms:{uTime:G.uTime,uPS:G.uPS,uAmt:threadU.uAmt,uA:threadU.uA,uB:threadU.uB},fragmentShader:SOFT_FS,vertexShader:`
+  attribute vec3 aSeed;uniform float uTime,uAmt,uPS;uniform vec3 uA,uB;varying float vA;varying vec3 vC;
+  void main(){float dir=aSeed.y>0.5?1.0:-1.0;float s=fract(aSeed.x+uTime*0.05*dir*(0.6+aSeed.z));
+    float env=sin(s*3.1416);float a=aSeed.z*40.0+uTime*(0.6+aSeed.x);
+    vec3 p=mix(uA,uB,s)+vec3(0.0,sin(a),cos(a))*0.09*aSeed.z*env;
+    vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;
+    float sz=(0.008+0.016*aSeed.x)*uPS/-mv.z;gl_PointSize=clamp(sz,1.0,24.0);
+    vA=uAmt*env*0.9*min(sz,1.0);vC=mix(vec3(1.0,0.55,0.62),vec3(1.0,0.85,0.65),s);}`}));
+  const o=new THREE.Points(g,m);o.frustumCulled=false;pivot.add(o);return o})();
+
+/* ---------- 心跳波 / 潮汐 ---------- */
+const waves=[0,1,2].map(()=>{const m=new THREE.ShaderMaterial(addMat({uniforms:{uA:{value:0}},vertexShader:`
+  varying vec3 vN,vW;void main(){vN=normalize(mat3(modelMatrix)*normal);vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
+  fragmentShader:`uniform float uA;varying vec3 vN,vW;void main(){vec3 Vv=normalize(cameraPosition-vW);float f=1.0-abs(dot(normalize(vN),Vv));
+  gl_FragColor=vec4(mix(vec3(1.0,0.4,0.52),vec3(1.0,0.8,0.6),f)*(pow(f,10.0)*1.4+pow(f,3.0)*0.08)*uA,1.0);}`}));
+  const o=new THREE.Mesh(new THREE.SphereGeometry(1,96,64),m);o.position.copy(PL);o.visible=false;o.renderOrder=4;pivot.add(o);return o});
+
+/* ---------- 尘埃环 ---------- */
+const dustU={uTime:G.uTime,uPS:G.uPS,uAmt:{value:0},uCollapse:{value:0}};
+const dust=(()=>{const N=9000,p=new Float32Array(N*3),d=new Float32Array(N*4);
+  for(let i=0;i<N;i++){const r=1.8+Math.pow(rnd(),0.75)*8.0;const g=(rnd()+rnd()+rnd()-1.5)*0.12;d.set([r,rnd()*6.2832,g,rnd()],i*4)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('aD',new THREE.BufferAttribute(d,4));
+  const m=new THREE.ShaderMaterial(addMat({uniforms:dustU,fragmentShader:SOFT_FS,vertexShader:`
+  attribute vec4 aD;uniform float uTime,uAmt,uCollapse,uPS;varying float vA;varying vec3 vC;
+  void main(){float r=aD.x;float rt=6.24+(r-6.24)*0.035;float rr=mix(r,rt,uCollapse*step(2.6,r));
+    float ang=aD.y+uTime*1.25/pow(max(rr,1.2),1.5);
+    vec3 p=vec3(cos(ang)*rr,aD.z*(1.0-uCollapse*0.92)*(0.4+rr*0.12),-sin(ang)*rr);
+    vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;
+    float sz=(0.014+0.03*aD.w)*uPS/-mv.z;gl_PointSize=clamp(sz,1.0,20.0);
+    vA=uAmt*(0.35+0.65*aD.w)*(0.6+0.4*sin(uTime*2.0+aD.w*60.0))*sqrt(min(sz,1.0))*2.6*(1.0+uCollapse*0.8);
+    vC=mix(vec3(0.75,0.85,1.0),vec3(1.0,0.8,0.62),step(0.6,aD.w));}`}));
+  const o=new THREE.Points(g,m);o.frustumCulled=false;scene.add(o);return o})();
+
+/* ---------- 两条公转圆 ---------- */
+const circleMat=(col)=>new THREE.ShaderMaterial(addMat({uniforms:{uDraw:{value:0},uAmt:{value:0},uCol:{value:col}},vertexShader:`
+  attribute float aT;varying float vT;void main(){vT=aT;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`uniform float uDraw,uAmt;uniform vec3 uCol;varying float vT;void main(){
+  float on=step(vT,uDraw);float head=exp(-pow((uDraw-vT)*40.0,2.0))*3.0*step(0.001,uDraw)*step(uDraw,0.999);
+  gl_FragColor=vec4(uCol*(on*0.9+head)*uAmt,1.0);}`}));
+const mkRing=(r,mat,parent,segs=720,ecc=0,inc=0,rotY=0)=>{const p=new Float32Array((segs+1)*3),t=new Float32Array(segs+1);
+  const a=r,b=r*Math.sqrt(1-ecc*ecc);const v=V();
+  for(let i=0;i<=segs;i++){const E=i/segs*Math.PI*2;v.set(a*(Math.cos(E)-ecc),0,-b*Math.sin(E));v.applyAxisAngle(V(1,0,0),inc).applyAxisAngle(V(0,1,0),rotY);p.set([v.x,v.y,v.z],i*3);t[i]=i/segs}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('aT',new THREE.BufferAttribute(t,1));
+  const o=new THREE.Line(g,mat);o.frustumCulled=false;parent.add(o);return o};
+const circC=mkRing(6.24,circleMat(new THREE.Color(1.0,0.78,0.66)),scene);
+const circP=mkRing(0.76,circleMat(new THREE.Color(1.0,0.6,0.7)),scene);
+
+/* ---------- 流星（人间来去匆匆） ---------- */
+const meteorU={uTime:G.uTime,uAmt:{value:0}};
+const meteors=(()=>{const N=90,id=new Float32Array(N*2),e=new Float32Array(N*2);for(let i=0;i<N;i++){id[i*2]=id[i*2+1]=i;e[i*2]=0;e[i*2+1]=1}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(N*6),3));g.setAttribute('aId',new THREE.BufferAttribute(id,1));g.setAttribute('aEnd',new THREE.BufferAttribute(e,1));
+  const m=new THREE.ShaderMaterial(addMat({uniforms:meteorU,fragmentShader:LINE_FS,vertexShader:`
+  attribute float aId,aEnd;uniform float uTime,uAmt;varying float vA;varying vec3 vC;
+  float h(float n){return fract(sin(n)*43758.5453);}
+  void main(){float P=1.4+2.2*h(aId*1.7+0.3);float c=(uTime+h(aId*3.1)*P)/P;float cyc=floor(c);float l=fract(c);float act=l/0.24;
+    float s=aId*13.0+cyc*7.31;
+    vec3 S=vec3(h(s)*34.0-14.0,h(s+1.0)*14.0-3.0,h(s+2.0)*26.0-15.0);
+    vec3 D=normalize(vec3(h(s+3.0)-0.3,-0.3-h(s+4.0)*0.5,h(s+5.0)-0.5));
+    float pr=clamp(act,0.0,1.0);vec3 head=S+D*pr*20.0;
+    vec3 p=head-D*aEnd*(2.0+3.5*h(s+6.0))*smoothstep(0.0,0.3,pr);
+    gl_Position=projectionMatrix*viewMatrix*vec4(p,1.0);
+    vA=uAmt*(act<1.0?sin(pr*3.1416):0.0)*(1.0-aEnd)*2.2;vC=mix(vec3(0.8,0.9,1.0),vec3(1.0,0.85,0.7),h(s+8.0));}`}));
+  const o=new THREE.LineSegments(g,m);o.frustumCulled=false;scene.add(o);return o})();
+
+/* ---------- 迟来的光 ---------- */
+const beamU={uH:{value:V()},uT:{value:V()},uAmt:{value:0}};
+const beam=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));g.setAttribute('aEnd',new THREE.BufferAttribute(new Float32Array([0,1]),1));
+  const m=new THREE.ShaderMaterial(addMat({uniforms:beamU,fragmentShader:LINE_FS,vertexShader:`
+  attribute float aEnd;uniform vec3 uH,uT;uniform float uAmt;varying float vA;varying vec3 vC;
+  void main(){vec3 p=mix(uH,uT,aEnd);gl_Position=projectionMatrix*viewMatrix*vec4(p,1.0);vA=uAmt*(1.0-aEnd)*6.0;vC=vec3(1.0,0.88,0.7);}`}));
+  const o=new THREE.Line(g,m);o.frustumCulled=false;scene.add(o);return o})();
+
+/* ---------- 像素尺寸的发光点（信标 / 光头） ---------- */
+const mkDot=(parent,col,size)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(3),3));
+  const m=new THREE.ShaderMaterial(addMat({depthTest:false,uniforms:{uPR:G.uPR,uSize:{value:size},uAmt:{value:0},uCol:{value:col}},vertexShader:`
+  uniform float uPR,uSize;void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_PointSize=uSize*uPR;}`,
+  fragmentShader:`uniform float uAmt;uniform vec3 uCol;void main(){vec2 q=gl_PointCoord*2.0-1.0;float d=dot(q,q);gl_FragColor=vec4(uCol*uAmt*(exp(-d*9.0)*2.0+exp(-d*2.5)*0.35),1.0);}`}));
+  const o=new THREE.Points(g,m);o.frustumCulled=false;o.renderOrder=8;parent.add(o);return o};
+const beaconP=mkDot(scene,new THREE.Color(1.0,0.6,0.62),26);
+const beaconC=mkDot(scene,new THREE.Color(0.75,0.85,1.0),16);
+const beamHead=mkDot(scene,new THREE.Color(1.0,0.9,0.75),46);beamHead.material.depthTest=true;
+
+/* ---------- 前景散景 ---------- */
+const bokeh=(()=>{const N=70,p=new Float32Array(N*3),s=new Float32Array(N*3);
+  for(let i=0;i<N;i++){p.set([(rnd()*2-1)*2.2,(rnd()*2-1)*1.3,-(1.2+rnd()*3)],i*3);s.set([rnd(),rnd(),rnd()],i*3)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('aSeed',new THREE.BufferAttribute(s,3));
+  const m=new THREE.ShaderMaterial(addMat({depthTest:false,uniforms:{uTime:G.uTime,uPS:G.uPS,uAmt:{value:0}},vertexShader:`
+  attribute vec3 aSeed;uniform float uTime,uPS,uAmt;varying float vA;varying vec3 vC;
+  void main(){vec3 p=position;p.x+=sin(uTime*0.11+aSeed.x*30.0)*0.25*-p.z*0.3;p.y+=(fract(aSeed.y+uTime*0.012)-0.5)*2.6*-p.z*0.35;
+    vec4 mv=modelViewMatrix*vec4(p,1.0);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((0.05+0.12*aSeed.z)*uPS/-mv.z,2.0,180.0);
+    vA=uAmt*(0.05+0.09*aSeed.x);vC=mix(vec3(1.0,0.62,0.55),vec3(1.0,0.86,0.62),aSeed.y);}`,
+  fragmentShader:`varying float vA;varying vec3 vC;void main(){vec2 q=gl_PointCoord*2.0-1.0;float r=length(q);
+    float a=smoothstep(1.0,0.86,r)*(0.6+0.4*smoothstep(0.55,0.95,r));gl_FragColor=vec4(vC*a*vA,1.0);}`}));
+  const o=new THREE.Points(g,m);o.frustumCulled=false;o.renderOrder=9;camera.add(o);return o})();
+
+/* =========================================================
+   太阳系俯瞰（第三、四句）
+   ========================================================= */
+const oSun=add2(mkSun(),orrery);oSun.frustumCulled=false;oSun.material.uniforms.uCol.value=new THREE.Color(1.0,0.82,0.62);
+const orbitMat=(col,base)=>new THREE.ShaderMaterial(addMat({uniforms:{uHead:{value:0},uBase:{value:base},uTrail:{value:0},uCol:{value:col}},vertexShader:`
+  attribute float aT;varying float vT;void main(){vT=aT;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`uniform float uHead,uBase,uTrail;uniform vec3 uCol;varying float vT;void main(){
+  float d=fract(uHead-vT+1.0);gl_FragColor=vec4(uCol*(uBase+uTrail*exp(-d*5.0)*1.6),1.0);}`}));
+const P_A=30,P_E=0.25,P_INC=17*D2R,P_ROT=1.9;
+const plutoOrbit=mkRing(P_A,orbitMat(new THREE.Color(1.0,0.62,0.66),0.18),orrery,1024,P_E,P_INC,P_ROT);
+const earthOrbit=mkRing(4,orbitMat(new THREE.Color(0.45,0.75,1.0),0.12),orrery,360);
+[[8.5,0.07],[14,0.06],[19.5,0.06],[25,0.10]].forEach(([r,b])=>mkRing(r,orbitMat(new THREE.Color(0.7,0.75,1.0),b),orrery,512));
+const oPluto=mkDot(orrery,new THREE.Color(1.0,0.66,0.68),22);oPluto.material.uniforms.uAmt.value=1;
+const oEarth=mkDot(orrery,new THREE.Color(0.5,0.8,1.0),14);oEarth.material.uniforms.uAmt.value=1;
+function plutoOrbitPos(frac){const M=frac*Math.PI*2;let E=M;for(let i=0;i<8;i++)E=M+P_E*Math.sin(E);
+  const v=V(P_A*(Math.cos(E)-P_E),0,-P_A*Math.sqrt(1-P_E*P_E)*Math.sin(E)).applyAxisAngle(V(1,0,0),P_INC).applyAxisAngle(V(0,1,0),P_ROT);
+  return {v,e:((E/(Math.PI*2))%1+1)%1}}
+
+/* =========================================================
+   后期
+   ========================================================= */
+const composer=new EffectComposer(renderer);
+const renderPass=new RenderPass(scene,camera);composer.addPass(renderPass);
+const after=new AfterimagePass(0);composer.addPass(after);
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),1.0,0.6,1.05);composer.addPass(bloom);
+const finalPass=new ShaderPass({uniforms:{tDiffuse:{value:null},uRes:{value:new THREE.Vector2()},uTime:{value:0},uExposure:{value:1},uWarm:{value:0},
+  uScope:{value:0},uFade:{value:0},uFlash:{value:0},uSunUV:{value:new THREE.Vector2(.5,.5)},uSunVis:{value:0},uSat:{value:1},uAspect:{value:1}},
+  vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`
+  uniform sampler2D tDiffuse;uniform vec2 uRes,uSunUV;uniform float uTime,uExposure,uWarm,uScope,uFade,uFlash,uSunVis,uSat,uAspect;varying vec2 vUv;
+  vec3 aces(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0);}
+  float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+  void main(){
+    vec2 uv=vUv;vec2 c=uv-0.5;c.x*=uAspect;float rr=length(c);
+    if(uScope>0.001){uv+=vec2(sin(uv.y*38.0+uTime*7.0),cos(uv.x*33.0+uTime*6.0))*0.0016*uScope;
+      vec2 px=vec2(uAspect,1.0)*230.0;uv=mix(uv,(floor(uv*px)+0.5)/px,uScope*0.65);}
+    vec2 dir=uv-0.5;float ca=0.0016+0.006*uScope;
+    vec3 col=vec3(texture2D(tDiffuse,uv-dir*ca).r,texture2D(tDiffuse,uv).g,texture2D(tDiffuse,uv+dir*ca).b);
+    if(uSunVis>0.001){vec2 toC=vec2(0.5)-uSunUV;
+      for(int i=0;i<6;i++){float k=float(i);vec2 gp=uSunUV+toC*(0.5+0.42*k);vec2 dd=vUv-gp;dd.x*=uAspect;
+        float r=0.018+0.03*fract(k*0.37+0.2);float g=smoothstep(r,r*0.55,length(dd));
+        col+=uSunVis*0.05*g*mix(vec3(1.0,0.5,0.62),vec3(0.5,0.72,1.0),fract(k*0.53));}
+      vec2 hd=vUv-uSunUV;hd.x*=uAspect;col+=uSunVis*vec3(1.0,0.7,0.5)*0.08*exp(-length(hd)*3.0);}
+    col*=uExposure;col+=vec3(1.0,0.92,0.85)*uFlash;
+    col=aces(col);col=pow(col,vec3(1.0/2.2));
+    float l=dot(col,vec3(0.299,0.587,0.114));col=mix(vec3(l),col,uSat);
+    float w=uWarm*0.5+0.5;
+    vec3 sh=mix(vec3(0.020,0.006,0.055),vec3(0.050,0.012,0.030),w);
+    vec3 hi=mix(vec3(0.95,0.99,1.06),vec3(1.06,1.0,0.90),w);
+    col=col*hi+sh*(1.0-l);
+    if(uScope>0.001){float lm=dot(col,vec3(0.3,0.59,0.11));col=mix(col,vec3(lm)*vec3(0.82,0.95,1.08),uScope*0.75);
+      float R=mix(1.3,0.40,uScope);float mask=smoothstep(R,R-0.006,rr);
+      float lw=1.3/uRes.y;float cr=(step(abs(c.x),lw)+step(abs(c.y),lw))*step(0.035,rr)*step(rr,R);
+      float ring=smoothstep(lw*1.6,0.0,abs(rr-R*0.55))*0.6+smoothstep(lw*1.6,0.0,abs(rr-R+0.012))*0.5;
+      col+=(cr*0.22+ring*0.14)*vec3(0.75,0.88,1.0)*uScope;
+      col*=mix(1.0,mask,smoothstep(0.0,0.3,uScope));}
+    float vig=smoothstep(1.2,0.3,length((vUv-0.5)*vec2(uAspect*0.72,1.0))*1.25);col*=mix(0.5,1.0,vig);
+    col+=(hash(vUv*uRes+fract(uTime*13.0)*100.0)-0.5)*0.032;
+    col*=1.0-uFade;
+    gl_FragColor=vec4(col,1.0);}`});
+composer.addPass(finalPass);
+
+/* =========================================================
+   时间轴：80 小节 × 3 秒 = 4 分钟（BPM 80，心跳每 1.5 秒一次）
+   ========================================================= */
+const BAR=3.0;
+const TL=[
+ {sec:'intro',bars:4,shot:'intro',ch:['Bm','G','D','A']},
+ {sec:'v1',lyric:'冰封的原野 摊开心形的浩瀚',shot:'heartReveal',ch:['Bm','G']},
+ {sec:'v1',lyric:'谁隔着望远镜 只读表面的冷暖',shot:'scope',ch:['D','A']},
+ {sec:'v1',lyric:'轨道绕着岁月缓慢地辗转',shot:'orrery1',ch:['Bm','G']},
+ {sec:'v1',lyric:'人间几回生死 不够它一轮循环',shot:'orrery2',ch:['D','A']},
+ {sec:'v1',lyric:'没被命名之前 风已经来回弥漫',shot:'wind',ch:['Bm','G']},
+ {sec:'v1',lyric:'有些故事发生 不必旁人来判断',shot:'charonRise',ch:['D','A']},
+ {sec:'pre1',lyric:'隔着浩瀚星云 不用高声呼喊',shot:'nebulaWide',ch:['Em','G']},
+ {sec:'pre1',lyric:'冰层底下 自有涌动的波澜',shot:'heartWake',ch:['A','A']},
+ {sec:'ch1',lyric:'遥远的冰原 藏着未说的答案',shot:'heroOrbit',ch:['G','A']},
+ {sec:'ch1',lyric:'不是悲鸣 也不是刻意的勇敢',shot:'backlit',ch:['F#m','Bm']},
+ {sec:'ch1',lyric:'有一双眼眸 岁岁遥遥地相看',shot:'profile',ch:['G','A']},
+ {sec:'ch1',lyric:'沉默相守 胜过万千的交谈',shot:'pullback',ch:['D','D']},
+ {sec:'int1',shot:'silhouette',ch:['G','A']},
+ {sec:'v2',lyric:'氮冰来回起落 消融又重新凝结',shot:'sublim',ch:['Bm','G']},
+ {sec:'v2',lyric:'内里的起伏 从不对世人展演',shot:'concealed',ch:['D','A']},
+ {sec:'v2',lyric:'与卡戎守着对望的视线',shot:'overShoulder',ch:['Bm','G']},
+ {sec:'v2',lyric:'彼此的模样 岁岁都不改变',shot:'trails',ch:['D','A']},
+ {sec:'v2',lyric:'人间来去匆匆 相聚总太过短暂',shot:'meteors',ch:['Bm','G']},
+ {sec:'v2',lyric:'有些情深意重 活在时光的远端',shot:'far',ch:['D','A']},
+ {sec:'pre2',lyric:'不必求得世间 全都能看见',shot:'iris',ch:['Em','G']},
+ {sec:'pre2',lyric:'那些悸动 始终在冰层下盘桓',shot:'beneath',ch:['A','A']},
+ {sec:'ch2',lyric:'遥远的冰原 藏着未说的答案',shot:'sweep',ch:['G','A']},
+ {sec:'ch2',lyric:'不是悲鸣 也不是刻意的勇敢',shot:'doubleSil',ch:['F#m','Bm']},
+ {sec:'ch2',lyric:'有一双眼眸 岁岁遥遥地相看',shot:'topdown',ch:['G','A']},
+ {sec:'ch2',lyric:'沉默相守 胜过万千的交谈',shot:'crane',ch:['D','D']},
+ {sec:'int2',shot:'dustOrbit',ch:['Em','A']},
+ {sec:'bridge',aud:'bridgeA',lyric:'光姗姗来迟 来不及把悲欢烘干',shot:'lateLight',ch:['Em','D']},
+ {sec:'bridge',aud:'bridgeA',lyric:'漫长的公转 兜住细碎的牵绊',shot:'dustRing',ch:['G','D']},
+ {sec:'bridge',aud:'bridgeB',lyric:'不必谁来定义 何为圆满',shot:'circles',ch:['Em','F#m']},
+ {sec:'bridge',aud:'bridgeB',lyric:'心底的潮汐 从来不曾被打断',shot:'tides',ch:['G','A']},
+ {sec:'lch',lyric:'遥远的冰原 藏着未说的答案',shot:'goldHeart',ch:['G','A']},
+ {sec:'lch',lyric:'不是悲鸣 也不是刻意的勇敢',shot:'limb',ch:['F#m','Bm']},
+ {sec:'lch',lyric:'有一双眼眸 岁岁遥遥地相看',shot:'goldProfile',ch:['G','A']},
+ {sec:'lch',lyric:'沉默相守 胜过万千的交谈',shot:'goldOrbit',ch:['D','D']},
+ {sec:'outro',lyric:'遥远的冰原 搏动无声的片段',shot:'heartClose',ch:['G','A']},
+ {sec:'outro',bars:3,lyric:'冰雪之下 波澜万千',shot:'pullout',ch:['G','A','D']},
+ {sec:'end',bars:3,shot:'end',ch:['D','D','D'],fade:[1,0.7,0.35]},
+];
+const SECNAME={intro:['PRELUDE','前奏'],v1:['VERSE I','主歌'],pre1:['PRE-CHORUS','预副歌'],ch1:['CHORUS','副歌'],int1:['INTERLUDE','间奏'],
+  v2:['VERSE II','主歌'],pre2:['PRE-CHORUS','预副歌'],ch2:['CHORUS','副歌'],int2:['INTERLUDE','间奏'],bridge:['BRIDGE','桥段'],lch:['CHORUS · SOFT','副歌 轻'],outro:['CODA','尾声'],end:['','']};
+const SEG=[];const BARS=[];{let t=0,li=0;for(const e of TL){const bars=e.bars||2;const s={...e,bars,start:t,dur:bars*BAR,idx:SEG.length};if(e.lyric)s.li=++li;SEG.push(s);
+  for(let b=0;b<bars;b++)BARS.push({ch:e.ch[b],aud:e.aud||e.sec,fade:e.fade?e.fade[b]:1});t+=bars*BAR}}
+const TOTAL=SEG[SEG.length-1].start+SEG[SEG.length-1].dur;
+
+/* 心跳：lub-dub，每 1.5 秒一次（与配乐里的心跳鼓完全同步） */
+function heartbeat(t){const P=1.5;const dt=((t%P)+P)%P;const lub=Math.exp(-dt*10);const d2=dt-0.27;const dub=d2>0?0.7*Math.exp(-d2*10):0;return {env:Math.min(1,lub+dub),dt}}
+
+/* =========================================================
+   分镜
+   ========================================================= */
+const DEF={sunAz:40,sunEl:20,sunInt:1,sunSize:1,heart:0.15,motes:0,thread:0,threadDraw:1,sublim:0,wind:0,meteor:0,dust:0,circles:0,collapse:0,waves:0,
+  bokeh:0,scope:0,trail:0,starRot:0,neb:1,warm:0,bloom:1,exposure:1,atm:1,spin:0,fade:0,flash:0,beam:-1,amb:1,stars:1,sat:1,beacon:0,
+  plutoOrb:0.3,earthLaps:0,earthGlow:0,counter:0};
+const SMOOTH=['warm','neb','exposure','bloom','sat','heart','amb','stars'];
+const jit=(t,a)=>V(Math.sin(t*3.1)*a+Math.sin(t*7.3)*a*0.5,Math.sin(t*2.7+1)*a+Math.sin(t*6.1)*a*0.4,0);
+
+const SH={
+ intro:{cam:u=>({p:sph(PL,lerp(10,6.4,io(u)),lerp(196,186,u),lerp(-8,-0.5,io(u))),t:add(PL,0,lerp(0.9,0.35,u),0),fov:38}),
+   P:{sunAz:8,sunEl:12,heart:0.25,atm:1.8,neb:0.9,warm:0.1,bloom:1.15,fade:u=>1-eo(clamp(u*2.2)),exposure:1.05,sunSize:1.2}},
+ heartReveal:{cam:u=>({p:sph(PL,lerp(3.9,2.6,io(u)),lerp(-16,-4,u),lerp(30,9,io(u))),t:add(PL,0.25,lerp(0.25,0.05,u),0),fov:40}),
+   P:{sunAz:48,sunEl:24,heart:0.14,motes:0.15,warm:0.15,neb:1.05}},
+ scope:{cam:(u,T)=>({p:sph(PL,70,25,4).add(jit(T,0.02)),t:PL,fov:2.1}),
+   P:{scope:1,heart:0,sunAz:55,sunEl:15,warm:-0.7,sat:0.7,bloom:0.5,neb:0.5,atm:0.6}},
+ orrery1:{scene:'orrery',frame:'world',cam:u=>({p:sph(O,lerp(78,66,u),lerp(-30,5,u),30),t:V(-4,0,0),fov:38}),
+   P:{plutoOrb:u=>0.30+0.035*u,earthLaps:u=>u*1.5,bloom:1.1,neb:1.1,warm:0.1}},
+ orrery2:{scene:'orrery',frame:'world',cam:u=>({p:sph(O,64,5,56),t:V(-5,0,1),fov:42}),
+   P:{plutoOrb:u=>0.335+io(u),earthLaps:u=>248*io(u),earthGlow:u=>io(u),trail:0.82,counter:1,bloom:1.2,neb:1.0,warm:0.1}},
+ wind:{cam:u=>({p:sph(PL,1.17,lerp(-62,-52,u),24),t:sph(PL,1.0,lerp(-24,-14,u),36),fov:46}),
+   P:{sunAz:25,sunEl:30,wind:1,atm:1.7,heart:0.05,warm:0.2,sublim:0.25}},
+ charonRise:{cam:u=>({p:add(PL,-2.4,lerp(0.2,1.9,io(u)),lerp(0.4,0.2,u)),t:V(lerp(2.0,3.2,u),lerp(0.2,0.6,u),0),fov:40}),
+   P:{sunAz:-75,sunEl:15,heart:0.12,atm:1.4,warm:0.0}},
+ nebulaWide:{cam:u=>({p:sph(MID,lerp(24,27,u),lerp(62,74,u),14),t:MID,fov:40}),
+   P:{neb:1.55,heart:0.35,warm:0.1,stars:1.3,sunAz:30,sunEl:25,beacon:0.25}},
+ heartWake:{cam:u=>({p:sph(PL,lerp(2.45,2.0,io(u)),-6,6),t:add(PL,0.3,0,0),fov:40}),
+   P:{sunInt:0.32,heart:u=>lerp(0.1,1.15,io(u)),motes:u=>u*0.7,warm:0.4,sunAz:72,sunEl:25,amb:0.8,bloom:1.2}},
+ heroOrbit:{cam:u=>({p:sph(PL,3.0,lerp(-36,12,io(u)),lerp(14,6,u)),t:add(PL,0.15,0,0),fov:40}),
+   P:{heart:1.0,motes:1,bloom:1.3,warm:0.6,sunAz:55,sunEl:25,neb:1.2,sunInt:0.85}},
+ backlit:{cam:u=>({p:sph(PL,lerp(3.7,3.3,u),lerp(3,-3,u),2),t:PL,fov:38}),
+   P:{sunAz:182,sunEl:4,heart:1.15,motes:0.9,atm:2.4,bloom:1.5,warm:0.5,neb:1.1}},
+ profile:{cam:u=>({p:V(2.74,lerp(0.9,0.5,u),lerp(9.6,8.7,u)),t:V(2.74,0,0),fov:40}),
+   P:{thread:1,threadDraw:u=>io(clamp(u*1.5)),heart:0.85,motes:0.5,sunAz:-60,sunEl:35,warm:0.5,bloom:1.3}},
+ pullback:{frame:'world',cam:u=>({p:V(lerp(2,1,u),lerp(5,11,io(u)),lerp(12,20,io(u))),t:V(2.2,0,0),fov:40}),
+   P:{spin:u=>lerp(0,35,u),thread:0.9,dust:u=>u*0.4,heart:0.8,sunAz:-50,sunEl:40,warm:0.5,bloom:1.3,motes:0.4}},
+ silhouette:{cam:u=>({p:V(lerp(9.6,9.2,u),0.45,lerp(1.6,1.0,u)),t:add(PL,0,0.1,0),fov:34}),
+   P:{sunAz:182,sunEl:3,atm:2.2,heart:0.95,thread:0.45,bloom:1.45,warm:0.3,motes:0.5}},
+ sublim:{cam:u=>({p:sph(PL,lerp(1.32,1.26,u),lerp(-26,-18,u),16),t:sph(PL,1.0,lerp(8,12,u),2),fov:46}),
+   P:{sublim:1,sunAz:75,sunEl:10,heart:0.08,warm:0,atm:1.4}},
+ concealed:{cam:u=>({p:sph(PL,lerp(3.4,3.1,u),lerp(28,20,u),12),t:PL,fov:40}),
+   P:{heart:0.03,sunAz:20,sunEl:30,warm:-0.35,sat:0.85,neb:0.8,sublim:0.2}},
+ overShoulder:{cam:u=>({p:V(lerp(7.7,7.35,u),lerp(0.55,0.45,u),lerp(1.15,0.9,u)),t:add(PL,0.3,0,0),fov:30}),
+   P:{thread:0.55,heart:0.35,sunAz:-70,sunEl:25,warm:0.1}},
+ trails:{cam:()=>({p:V(2.74,1.4,11.5),t:V(2.74,0,0),fov:38}),
+   P:{starRot:u=>u*4.5,trail:0.955,heart:0.4,thread:0.35,sunAz:-40,sunEl:35,neb:0.75,stars:1.6}},
+ meteors:{cam:u=>({p:V(lerp(-5,-3.5,u),lerp(2.6,2.0,u),lerp(10,9,u)),t:V(2.2,0,0),fov:42}),
+   P:{meteor:1,heart:0.3,sunAz:-30,sunEl:30,neb:1.1}},
+ far:{cam:u=>({p:sph(MID,lerp(30,150,io(u)),lerp(-30,-40,u),lerp(18,24,u)),t:MID,fov:34}),
+   P:{neb:1.45,stars:1.4,heart:0.4,sunAz:-20,sunEl:20,beacon:u=>io(u),warm:0.1}},
+ iris:{cam:u=>({p:sph(PL,lerp(70,7,io(u)),lerp(35,25,u),lerp(4,10,u)),t:PL,fov:lerp(2.1,30,io(u))}),
+   P:{scope:u=>1-io(clamp(u*1.4)),sat:u=>lerp(0.7,1.1,u),warm:u=>lerp(-0.7,0.45,u),heart:u=>lerp(0,0.6,u),sunAz:50,sunEl:15,bloom:u=>lerp(0.5,1.2,u)}},
+ beneath:{cam:u=>({p:sph(PL,lerp(1.55,1.4,u),0,lerp(26,20,u)),t:sph(PL,1.0,0,-6),fov:50}),
+   P:{sunInt:0.22,heart:1.65,motes:0.6,warm:0.6,bloom:1.45,sublim:0.4,sunAz:60,sunEl:30,amb:0.7}},
+ sweep:{cam:u=>({p:sph(PL,lerp(4.8,3.6,io(u)),lerp(-70,-15,io(u)),lerp(20,8,u)),t:add(PL,0.6,0,0),fov:42}),
+   P:{heart:1.3,motes:1.5,thread:0.6,bloom:1.5,warm:0.8,neb:1.3,sunAz:30,sunEl:30,sunInt:0.9}},
+ doubleSil:{cam:u=>({p:V(lerp(10.5,10,u),lerp(0.9,0.6,u),lerp(-1.6,-1.2,u)),t:V(1.5,0,0),fov:36}),
+   P:{sunAz:181,sunEl:2,atm:2.5,heart:1.3,thread:1,motes:1,bloom:1.6,warm:0.6,neb:1.2}},
+ topdown:{frame:'world',cam:u=>({p:V(2.74+lerp(-0.5,0.5,u),9.5,3.2),t:V(2.74,0,0),fov:45}),
+   P:{thread:1.2,heart:1.1,spin:u=>lerp(-10,10,u),sunAz:-40,sunEl:60,motes:1,warm:0.6,bloom:1.4}},
+ crane:{frame:'world',cam:u=>({p:V(lerp(3,0,u),lerp(2.5,16,io(u)),lerp(9,22,io(u))),t:V(2,0,0),fov:40}),
+   P:{spin:u=>lerp(10,60,u),dust:u=>io(u)*1.8,thread:1,heart:1,sunAz:-40,sunEl:45,warm:0.6,bloom:1.4,motes:0.6}},
+ dustOrbit:{frame:'world',cam:u=>({p:sph(O,24,lerp(80,110,u),22),t:O,fov:40}),
+   P:{dust:2,spin:u=>60+u*20,heart:0.7,thread:0.6,neb:1.3,warm:0.5,sunAz:-40,sunEl:45,bloom:1.3}},
+ lateLight:{cam:u=>({p:add(PL,3.2,0.9,2.5),t:add(PL,0,0.3,-5),fov:50}),
+   P:{sunAz:90,sunEl:8,sunInt:u=>u<0.55?0.03:lerp(0.03,1.1,eo(clamp((u-0.55)/0.3))),beam:u=>clamp(u/0.55),
+      flash:u=>u>0.55?0.55*Math.exp(-(u-0.55)*14):0,heart:0.3,warm:u=>u<0.55?-0.5:0.7,atm:1.4,amb:u=>u<0.55?0.5:1,bloom:1.3}},
+ dustRing:{frame:'world',cam:u=>({p:V(lerp(-3,-1,u),1.0,lerp(11,10,u)),t:V(2.5,0,0),fov:42}),
+   P:{dust:1,spin:u=>80+u*25,heart:0.6,sunAz:-30,sunEl:30,thread:0.5,bokeh:0.3,warm:0.5}},
+ circles:{frame:'world',cam:u=>({p:V(0,lerp(19,17,u),0.6),t:O,fov:42,up:V(0,0,-1)}),
+   P:{circles:u=>io(clamp(u*1.3)),dust:0.7,collapse:u=>io(u)*0.85,spin:u=>110+u*90,heart:0.9,sunAz:-30,sunEl:70,warm:0.6,bloom:1.4}},
+ tides:{cam:u=>({p:V(2.74,lerp(2.2,1.6,u),lerp(9.2,8.6,u)),t:V(2.74,0,0),fov:42}),
+   P:{waves:1,heart:1.3,thread:0.4,sunAz:-55,sunEl:30,bloom:1.45,warm:0.6}},
+ goldHeart:{cam:u=>({p:sph(PL,lerp(4.2,3.1,io(u)),lerp(-18,-8,u),14),t:add(PL,0.2,0,0),fov:40}),
+   P:{warm:1,bokeh:1,heart:0.85,motes:1.2,sunAz:50,sunEl:25,exposure:1.1,sat:1.05,bloom:1.25}},
+ limb:{cam:u=>({p:add(PL,lerp(0.6,0.2,u),1.38,2.6),t:add(PL,lerp(0.9,0.6,u),1.12,0),fov:40}),
+   P:{atm:2.2,sunAz:130,sunEl:4,warm:1,bokeh:0.6,heart:0.5,bloom:1.3,exposure:1.1}},
+ goldProfile:{cam:u=>({p:V(2.74,-0.9,lerp(8.8,8.2,u)),t:V(2.74,0.15,0),fov:40}),
+   P:{thread:1,heart:0.9,bokeh:0.8,warm:1,sunAz:-60,sunEl:25,motes:0.6,bloom:1.3,exposure:1.05}},
+ goldOrbit:{frame:'world',cam:u=>({p:sph(V(2.5,0,0),14,lerp(100,140,u),18),t:V(2.5,0,0),fov:40}),
+   P:{spin:u=>u*30,dust:0.6,thread:0.8,heart:0.8,bokeh:0.5,warm:1,sunAz:-40,sunEl:35,bloom:1.3}},
+ heartClose:{cam:u=>({p:sph(PL,lerp(2.7,2.35,u),0,5),t:add(PL,0.3,0,0),fov:40}),
+   P:{heart:1.2,sunInt:0.5,motes:0.6,warm:0.6,sunAz:60,sunEl:25,bloom:1.3}},
+ pullout:{cam:u=>({p:sph(vl(PL,MID,io(u)),2.35*Math.pow(110,io(u)),lerp(0,-25,u),lerp(5,20,u)),t:vl(add(PL,0.3,0,0),MID,io(u)),fov:40}),
+   P:{heart:1.3,beacon:u=>io(u),neb:1.3,stars:1.2,thread:u=>io(u)*0.8,warm:0.5,sunAz:60,sunEl:25,motes:0.6,bloom:1.3}},
+ end:{cam:u=>({p:sph(MID,lerp(258,300,u),lerp(-25,-28,u),20),t:MID,fov:40}),
+   P:{beacon:1,heart:1.3,neb:1.3,stars:1.2,warm:0.5,sunAz:60,sunEl:25,fade:u=>io(clamp((u-0.62)/0.38))}},
+};
+
+function shotParams(sh,u,t){const o={...DEF};for(const k in sh.P){const v=sh.P[k];o[k]=typeof v==='function'?v(u,t):v}return o}
+function shotCam(sh,u,t,spin){const c=sh.cam(u,t);const out={p:c.p.clone(),t:c.t.clone(),fov:c.fov,up:c.up||V(0,1,0)};
+  if((sh.frame||'sys')==='sys'&&spin){const a=spin*D2R;out.p.applyAxisAngle(V(0,1,0),a);out.t.applyAxisAngle(V(0,1,0),a)}return out}
+function segAt(t){for(let i=SEG.length-1;i>=0;i--)if(t>=SEG[i].start)return i;return 0}
+function evalState(t){
+  const i=segAt(Math.min(t,TOTAL-1e-3));const seg=SEG[i];const sh=SH[seg.shot];const lt=t-seg.start;const u=clamp(lt/seg.dur);
+  const P=shotParams(sh,u,t);let cam=shotCam(sh,u,t,P.spin);
+  if(i>0&&lt<1.0){const ps=SEG[i-1],psh=SH[ps.shot];const PP=shotParams(psh,1,t);const w=sstep(0,1,lt/0.9);
+    if(sh.blend){for(const k in P)if(typeof P[k]==='number')P[k]=lerp(PP[k],P[k],w);
+      const pc=shotCam(psh,1,t,PP.spin);cam.p.lerp(pc.p,1-w);cam.t.lerp(pc.t,1-w);cam.fov=lerp(pc.fov,cam.fov,w)}
+    else for(const k of SMOOTH)P[k]=lerp(PP[k],P[k],w)}
+  return {seg,sh,u,P,cam,scene:sh.scene||'main'};
+}
+
+/* =========================================================
+   配乐：WebAudio 实时合成（铺底 + 冰晶钟声 + 心跳 + 贝斯 + 主旋律）
+   ========================================================= */
+const PC={Bm:[11,2,6,9],G:[7,11,2,9],D:[2,6,9,4],A:[9,1,4,11],Em:[4,7,11,2],'F#m':[6,9,1,4]};
+const ROOT={Bm:11,G:7,D:2,A:9,Em:4,'F#m':6};
+const vc=(pcs,lo)=>pcs.map(pc=>lo+(((pc-lo)%12)+12)%12).sort((a,b)=>a-b);
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+const AUD={
+ intro:{pad:.55,cut:700,arp:'sparse',arpV:.06,hb:0,bass:0,lead:0,sh:.3,spark:1},
+ v1:{pad:.6,cut:950,arp:'q',arpV:.045,hb:0,bass:.35,lead:0,sh:.18,spark:1},
+ pre1:{pad:.75,cut:1400,arp:'q',arpV:.05,hb:.55,bass:.45,lead:0,sh:.25,spark:0},
+ ch1:{pad:.9,cut:2400,arp:'8',arpV:.045,hb:1,bass:.7,lead:.55,sh:.3,spark:0},
+ int1:{pad:.75,cut:1600,arp:'8',arpV:.04,hb:.6,bass:.5,lead:0,sh:.3,spark:1},
+ v2:{pad:.62,cut:1050,arp:'8',arpV:.028,hb:.3,bass:.4,lead:0,sh:.2,spark:1},
+ pre2:{pad:.78,cut:1500,arp:'q',arpV:.05,hb:.7,bass:.5,lead:0,sh:.25,spark:0},
+ ch2:{pad:1,cut:3000,arp:'8',arpV:.05,hb:1,bass:.8,lead:.65,sh:.35,spark:0},
+ int2:{pad:.6,cut:1200,arp:'q',arpV:.04,hb:.5,bass:.3,lead:0,sh:.3,spark:1},
+ bridgeA:{pad:.5,cut:800,arp:'sparse',arpV:.055,hb:.4,bass:.2,lead:0,sh:.35,spark:1},
+ bridgeB:{pad:.85,cut:2200,arp:'8',arpV:.045,hb:1,bass:.7,lead:.4,sh:.3,spark:0},
+ lch:{pad:.6,cut:1000,arp:'q',arpV:.045,hb:.55,bass:.3,lead:.3,sh:.25,spark:1},
+ outro:{pad:.5,cut:800,arp:'sparse',arpV:.05,hb:.8,bass:0,lead:0,sh:.25,spark:1},
+ end:{pad:.42,cut:650,arp:'sparse',arpV:.04,hb:.5,bass:0,lead:0,sh:.2,spark:0},
+};
+const hsh=n=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x)};
+const score={ctx:null,ok:false,next:0,ctxStart:0,muted:false,
+ init(){try{const AC=window.AudioContext||window.webkitAudioContext;const c=this.ctx=new AC();
+   this.master=c.createGain();this.master.gain.value=0.9;
+   const comp=c.createDynamicsCompressor();comp.threshold.value=-18;comp.ratio.value=3;comp.attack.value=0.01;comp.release.value=0.3;
+   this.input=c.createGain();this.direct=c.createGain();
+   const rev=c.createConvolver();rev.buffer=this.ir(5.5);const wet=c.createGain();wet.gain.value=0.6;const dry=c.createGain();dry.gain.value=0.7;
+   this.input.connect(dry);this.input.connect(rev);rev.connect(wet);dry.connect(comp);wet.connect(comp);this.direct.connect(comp);
+   comp.connect(this.master);this.master.connect(c.destination);
+   this.noise=c.createBuffer(1,c.sampleRate*2,c.sampleRate);const d=this.noise.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+   this.ok=true}catch(e){console.warn('audio off',e);this.ok=false}},
+ ir(sec){const c=this.ctx,n=c.sampleRate*sec,b=c.createBuffer(2,n,c.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);
+   for(let i=0;i<n;i++){const k=i/n;d[i]=(Math.random()*2-1)*Math.pow(1-k,2.6)*(i<c.sampleRate*0.02?0.4:1)}}return b},
+ newBus(){const c=this.ctx;for(const b of [this.bus,this.busD]){if(b){b.gain.setTargetAtTime(0,c.currentTime,0.03);setTimeout(()=>b.disconnect(),500)}}
+   this.bus=c.createGain();this.bus.connect(this.input);this.busD=c.createGain();this.busD.connect(this.direct)},
+ start(t){if(!this.ok)return;this.newBus();this.ctxStart=this.ctx.currentTime-t;this.next=Math.floor(t/BAR)},
+ stop(){if(!this.ok)return;this.newBus()},
+ pad(t0,dur,m,vol,cut){const c=this.ctx;const g=c.createGain(),f=c.createBiquadFilter();f.type='lowpass';f.Q.value=0.5;
+   f.frequency.setValueAtTime(cut*0.55,t0);f.frequency.linearRampToValueAtTime(cut,t0+dur*0.7);
+   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+Math.min(1.3,dur*0.5));g.gain.setValueAtTime(vol,t0+dur);g.gain.linearRampToValueAtTime(0,t0+dur+2.4);
+   for(const dt of [-9,7]){const o=c.createOscillator();o.type='sawtooth';o.frequency.value=mtof(m);o.detune.value=dt;o.connect(f);o.start(t0);o.stop(t0+dur+2.6)}
+   const s=c.createOscillator();s.type='sine';s.frequency.value=mtof(m);const sg=c.createGain();sg.gain.value=1.2;s.connect(sg);sg.connect(f);s.start(t0);s.stop(t0+dur+2.6);
+   f.connect(g);g.connect(this.bus)},
+ bell(t0,m,vol){const c=this.ctx,fq=mtof(m);const car=c.createOscillator(),mod=c.createOscillator(),mg=c.createGain(),g=c.createGain();
+   car.frequency.value=fq;mod.frequency.value=fq*3.5;mg.gain.setValueAtTime(fq*1.4,t0);mg.gain.exponentialRampToValueAtTime(fq*0.04,t0+1.4);
+   mod.connect(mg);mg.connect(car.frequency);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.006);g.gain.exponentialRampToValueAtTime(0.0001,t0+3.2);
+   car.connect(g);g.connect(this.bus);car.start(t0);mod.start(t0);car.stop(t0+3.3);mod.stop(t0+3.3)},
+ thump(t0,vol){const c=this.ctx;const o=c.createOscillator();o.frequency.setValueAtTime(78,t0);o.frequency.exponentialRampToValueAtTime(38,t0+0.18);
+   const g=c.createGain();g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t0+0.5);
+   o.connect(g);g.connect(this.busD);const sg=c.createGain();sg.gain.value=0.25;g.connect(sg);sg.connect(this.bus);o.start(t0);o.stop(t0+0.55);
+   const n=c.createBufferSource();n.buffer=this.noise;const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=380;const ng=c.createGain();
+   ng.gain.setValueAtTime(vol*0.4,t0);ng.gain.exponentialRampToValueAtTime(0.0001,t0+0.07);n.connect(lp);lp.connect(ng);ng.connect(this.busD);n.start(t0,Math.random());n.stop(t0+0.09)},
+ bass(t0,dur,m,vol){const c=this.ctx;const o=c.createOscillator();o.type='triangle';o.frequency.value=mtof(m);const s=c.createOscillator();s.frequency.value=mtof(m-12);
+   const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=320;const g=c.createGain();
+   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.06);g.gain.setTargetAtTime(vol*0.6,t0+0.3,0.5);g.gain.setValueAtTime(vol*0.6,t0+dur);g.gain.linearRampToValueAtTime(0,t0+dur+0.5);
+   o.connect(f);s.connect(f);f.connect(g);g.connect(this.busD);o.start(t0);s.start(t0);o.stop(t0+dur+0.6);s.stop(t0+dur+0.6)},
+ lead(t0,dur,m,vol){const c=this.ctx;const g=c.createGain(),f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=2000;
+   const lfo=c.createOscillator(),lg=c.createGain();lfo.frequency.value=5.2;lg.gain.setValueAtTime(0,t0);lg.gain.linearRampToValueAtTime(7,t0+0.5);lfo.connect(lg);
+   for(const dt of [-5,5]){const o=c.createOscillator();o.type='triangle';o.frequency.value=mtof(m);o.detune.value=dt;lg.connect(o.detune);o.connect(f);o.start(t0);o.stop(t0+dur+0.9)}
+   g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+0.12);g.gain.setValueAtTime(vol,t0+dur);g.gain.linearRampToValueAtTime(0,t0+dur+0.8);
+   f.connect(g);g.connect(this.bus);lfo.start(t0);lfo.stop(t0+dur+0.9)},
+ shimmer(t0,dur,vol){const c=this.ctx;const n=c.createBufferSource();n.buffer=this.noise;n.loop=true;const bp=c.createBiquadFilter();bp.type='bandpass';bp.frequency.value=7500;bp.Q.value=0.8;
+   const g=c.createGain();g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+dur*0.5);g.gain.linearRampToValueAtTime(0,t0+dur+0.3);
+   n.connect(bp);bp.connect(g);g.connect(this.bus);n.start(t0,Math.random());n.stop(t0+dur+0.4)},
+ bar(k,tb,skip){const b=BARS[k];const A=AUD[b.aud];const fd=b.fade;const st=Math.max(0,skip);
+   const ok=x=>x>=skip-0.02;
+   const pad=vc(PC[b.ch].slice(0,3),55).concat(vc([PC[b.ch][3]],67));
+   pad.forEach(m=>this.pad(tb+st,BAR-st+0.1,m,A.pad*0.03*fd,A.cut));
+   if(A.sh)this.shimmer(tb+st,BAR-st,A.sh*0.012*fd);
+   const ar=vc(PC[b.ch],74);
+   const pat=A.arp==='8'?[0,2,1,3,2,1,3,2].map((n,i)=>[i*0.375,n]):A.arp==='q'?[0,1,2,3].map((n,i)=>[i*0.75,n]):[[0,3],[1.5,1]];
+   pat.forEach(([x,n],i)=>{if(ok(x))this.bell(tb+x,ar[n%ar.length]+((A.arp==='sparse'&&i===0)?12:0),A.arpV*fd*(i%2?0.75:1))});
+   if(A.spark){for(let i=0;i<8;i++){if(hsh(k*8+i)>0.8&&ok(i*0.375+0.19)){const pent=[86,88,90,93,95,98];this.bell(tb+i*0.375+0.19,pent[Math.floor(hsh(k*31+i)*6)],0.022*fd)}}}
+   if(A.hb){for(const x of [0,1.5]){if(ok(x))this.thump(tb+x,0.55*A.hb*fd);if(ok(x+0.27))this.thump(tb+x+0.27,0.36*A.hb*fd)}}
+   if(A.bass){const r=vc([ROOT[b.ch]],36)[0];if(ok(0))this.bass(tb,1.4,r,A.bass*0.16);if(ok(1.5))this.bass(tb+1.5,1.4,r+(A.arp==='8'?12:0),A.bass*0.12)}
+   if(A.lead){const tones=vc(PC[b.ch],69);const mel=k%2?[[0,2,1.0],[1.125,1,0.35],[1.5,3,1.3]]:[[0,3,0.7],[0.75,2,0.7],[1.5,1,0.35],[1.875,0,1.0]];
+     mel.forEach(([x,n,d])=>{if(ok(x))this.lead(tb+x,d,tones[n]+12,A.lead*0.05)})}
+ },
+ tick(now){if(!this.ok)return;while(this.next<BARS.length&&this.next*BAR<now+0.8){const k=this.next;const skip=now-k*BAR;
+   this.bar(k,this.ctxStart+k*BAR,skip);this.next++}},
+};
+
+/* =========================================================
+   播放控制
+   ========================================================= */
+const qs=new URLSearchParams(location.search);
+const clock={playing:false,base:0,perf0:0,useAudio:false,
+ now(){if(!this.playing)return this.base;if(this.useAudio&&score.ok)return score.ctx.currentTime-score.ctxStart;return this.base+(performance.now()-this.perf0)/1000},
+ play(){if(this.base>=TOTAL-0.05)this.base=0;this.playing=true;this.perf0=performance.now();if(this.useAudio&&score.ok){score.ctx.resume();score.start(this.base)}lyricReset();ui.pp.textContent='❚❚'},
+ pause(){this.base=this.now();this.playing=false;if(this.useAudio)score.stop();ui.pp.textContent='▶'},
+ seek(t){t=clamp(t,0,TOTAL);const p=this.playing;if(p)this.pause();this.base=t;lyricReset();if(p)this.play()},
+};
+window.MV={seek:t=>clock.seek(t),play:()=>clock.play(),pause:()=>clock.pause(),get t(){return clock.now()},SEG,TOTAL};
+
+const ui={pp:document.getElementById('pp'),tm:document.getElementById('tm'),sk:document.getElementById('sk'),mu:document.getElementById('mu'),fs:document.getElementById('fs'),ctl:document.getElementById('ctl'),
+  lyric:document.getElementById('lyric'),sec:document.getElementById('sec'),hud:document.getElementById('hud'),counter:document.getElementById('counter'),cn:document.querySelector('#counter .n'),
+  title:document.getElementById('title'),end:document.getElementById('endcard'),start:document.getElementById('start')};
+ui.sk.max=TOTAL;
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+document.getElementById('dur').textContent=fmt(TOTAL);
+let started=false;
+document.getElementById('go').onclick=()=>{score.init();clock.useAudio=score.ok;started=true;ui.start.classList.add('hide');clock.base=0;clock.play()};
+ui.pp.onclick=()=>clock.playing?clock.pause():clock.play();
+ui.sk.oninput=()=>clock.seek(+ui.sk.value);
+ui.mu.onclick=()=>{score.muted=!score.muted;if(score.master)score.master.gain.value=score.muted?0:0.9;ui.mu.style.opacity=score.muted?0.35:0.85};
+ui.fs.onclick=()=>{document.fullscreenElement?document.exitFullscreen().catch(()=>{}):document.documentElement.requestFullscreen?.().catch(()=>{})};
+let hideT=0;addEventListener('mousemove',()=>{if(!started)return;ui.ctl.classList.add('show');clearTimeout(hideT);hideT=setTimeout(()=>ui.ctl.classList.remove('show'),2400)});
+addEventListener('keydown',e=>{if(!started)return;if(e.code==='Space'){e.preventDefault();clock.playing?clock.pause():clock.play()}
+  else if(e.code==='ArrowRight')clock.seek(clock.now()+5);else if(e.code==='ArrowLeft')clock.seek(clock.now()-5);
+  else if(e.code==='KeyF')ui.fs.onclick();else if(e.code==='KeyM')ui.mu.onclick()});
+
+/* 歌词 */
+let curLyric=-1;
+function lyricReset(){curLyric=-2}
+function showLyric(seg,lt){
+  const want=(seg.lyric&&lt>0.12&&lt<seg.dur-0.35)?seg.idx:-1;
+  if(want===curLyric)return;
+  const instant=curLyric===-2;curLyric=want;
+  for(const r of [...ui.lyric.children]){if(instant){r.remove()}else{r.classList.add('out');setTimeout(()=>r.remove(),1200)}}
+  if(want<0)return;
+  const row=document.createElement('div');row.className='row';let i=0;
+  for(const ch of seg.lyric){if(ch===' '){const g=document.createElement('span');g.className='gap';row.appendChild(g);i+=2;continue}
+    const s=document.createElement('span');s.className='ch';s.textContent=ch;s.style.animationDelay=(instant?0:(i*0.07))+'s';if(instant)s.style.animationDuration='0.01s';row.appendChild(s);i++}
+  ui.lyric.appendChild(row);
+}
+
+/* =========================================================
+   每帧
+   ========================================================= */
+const tmpQ=new THREE.Quaternion(),tmpM4=new THREE.Matrix4(),tmpV=V(),skyAxis=V(0.3,1,0.2).normalize();
+let afterWasOn=false;
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);composer.setSize(w,h);camera.aspect=w/h;
+  finalPass.uniforms.uRes.value.set(w*PR,h*PR);finalPass.uniforms.uAspect.value=w/h}
+addEventListener('resize',resize);resize();
+
+function occl(center,R){tmpV.copy(center).sub(camera.position);const d=tmpV.length();tmpV.divideScalar(d);const ca=tmpV.dot(sunDir);
+  if(ca<=0||d<R)return 1;const th=Math.acos(Math.min(1,ca));const al=Math.asin(Math.min(R/d,1));return sstep(al*0.97,al*1.12,th)}
+const sunDir=V(1,0,0);
+
+function update(t){
+  const S=evalState(t);const P=S.P;
+  G.uTime.value=t;
+  const hb=heartbeat(t);G.uBeat.value=hb.env*clamp(P.heart*1.1);
+  pivot.rotation.y=P.spin*D2R;pivot.updateMatrixWorld(true);
+  // 相机
+  camera.position.copy(S.cam.p);camera.up.copy(S.cam.up);camera.lookAt(S.cam.t);
+  const asp=innerWidth/innerHeight;let fov=S.cam.fov;if(asp<16/9){const k=Math.tan(fov*D2R/2)*(16/9)/asp;fov=lerp(fov,2*Math.atan(k)/D2R,asp<1?0.85:0.62)}
+  camera.fov=Math.min(fov,110);camera.updateProjectionMatrix();camera.updateMatrixWorld(true);
+  G.uPS.value=renderer.domElement.height/(2*Math.tan(camera.fov*D2R/2));
+  // 太阳与天空
+  sunDir.copy(sph(O,1,P.sunAz,P.sunEl)).normalize();
+  const isOrr=S.scene==='orrery';
+  tmpQ.setFromAxisAngle(skyAxis,P.starRot);
+  for(const r of [skyRig,oskyRig])r.position.copy(camera.position);stars.quaternion.copy(tmpQ);
+  skyMat.uniforms.uNeb.value=P.neb;skyMat.uniforms.uWarm.value=P.warm;starMat.uniforms.uStars.value=P.stars;
+  const pPos=pluto.getWorldPosition(V()),cPos=charon.getWorldPosition(V());
+  let sunVis=0;
+  if(!isOrr){
+    skyMat.uniforms.uSunDir.value.copy(sunDir);
+    sun.position.copy(camera.position).addScaledVector(sunDir,1000);sun.quaternion.copy(camera.quaternion);sun.scale.setScalar(1000*0.5*P.sunSize);
+    const vis=occl(pPos,1.0)*occl(cPos,R_CH);
+    sun.material.uniforms.uVis.value=lerp(0.32,1,vis)*clamp(P.sunInt*1.2);
+    tmpV.copy(camera.position).add(sunDir).project(camera);
+    if(tmpV.z<1&&Math.abs(tmpV.x)<1.3&&Math.abs(tmpV.y)<1.3){finalPass.uniforms.uSunUV.value.set(tmpV.x*0.5+0.5,tmpV.y*0.5+0.5);sunVis=vis*clamp(P.sunInt)*sstep(1.3,0.9,Math.max(Math.abs(tmpV.x),Math.abs(tmpV.y)))}
+  }else{
+    skyMat.uniforms.uSunDir.value.set(0,-1,0);
+    oSun.position.set(0,0,0);oSun.quaternion.copy(camera.quaternion);oSun.scale.setScalar(9);oSun.material.uniforms.uVis.value=1;
+    const pp=plutoOrbitPos(P.plutoOrb);oPluto.position.copy(pp.v);plutoOrbit.material.uniforms.uHead.value=pp.e;plutoOrbit.material.uniforms.uTrail.value=1;
+    const ea=P.earthLaps*Math.PI*2+0.6;oEarth.position.set(4*Math.cos(ea),0,-4*Math.sin(ea));
+    earthOrbit.material.uniforms.uHead.value=((P.earthLaps+0.6/(Math.PI*2))%1+1)%1;earthOrbit.material.uniforms.uTrail.value=0.8;earthOrbit.material.uniforms.uBase.value=0.12+P.earthGlow*0.9;
+    tmpV.set(0,0,0).project(camera);finalPass.uniforms.uSunUV.value.set(tmpV.x*0.5+0.5,tmpV.y*0.5+0.5);sunVis=0.5;
+  }
+  // 星体
+  plutoU.uSunDir.value.copy(sunDir);plutoU.uSunInt.value=P.sunInt;plutoU.uHeart.value=P.heart;
+  plutoU.uAmbCol.value.setRGB(0.045,0.035,0.075).lerp(new THREE.Color(0.07,0.04,0.045),P.warm*0.5+0.5).multiplyScalar(P.amb);
+  plutoU.uRipR.value=hb.dt*0.95;plutoU.uRipA.value=Math.exp(-hb.dt*1.6)*sstep(0,0.05,hb.dt);
+  pluto.getWorldQuaternion(tmpQ);plutoU.uRot.value.setFromMatrix4(tmpM4.makeRotationFromQuaternion(tmpQ));
+  charon.getWorldQuaternion(tmpQ);charonU.uRot.value.setFromMatrix4(tmpM4.makeRotationFromQuaternion(tmpQ));
+  atmU.uCenter.value.copy(pPos);atmU.uAtm.value=P.atm;
+  // 粒子与特效
+  motes.material.uniforms.uAmt.value=P.motes;motes.visible=P.motes>0.001;
+  sublim.material.uniforms.uAmt.value=P.sublim;sublim.visible=P.sublim>0.001;
+  wind.material.uniforms.uAmt.value=P.wind;wind.visible=P.wind>0.001;
+  threadU.uAmt.value=P.thread;threadU.uDraw.value=P.threadDraw;thread.visible=threadP.visible=P.thread>0.001;
+  dustU.uAmt.value=P.dust;dustU.uCollapse.value=P.collapse;dust.visible=P.dust>0.001;
+  for(const c of [circC,circP]){c.material.uniforms.uDraw.value=P.circles;c.material.uniforms.uAmt.value=P.circles>0?1:0;c.visible=P.circles>0.001}
+  meteorU.uAmt.value=P.meteor;meteors.visible=P.meteor>0.001;
+  bokeh.material.uniforms.uAmt.value=P.bokeh;bokeh.visible=P.bokeh>0.001;
+  // 心跳波
+  let tide=0;
+  waves.forEach((w,k)=>{const dt=hb.dt+k*1.5;const R=1+dt*4.2;const a=P.waves*Math.exp(-dt*0.55)*sstep(0,0.08,dt);w.scale.setScalar(R);w.material.uniforms.uA.value=a*0.9;w.visible=a>0.002;
+    tide+=Math.exp(-Math.pow((R-7)/0.9,2))*a});
+  charonU.uTide.value=tide*1.2+P.thread*0.05;
+  // 信标
+  beaconP.position.copy(pPos);beaconC.position.copy(cPos);
+  beaconP.material.uniforms.uAmt.value=P.beacon*(0.55+0.9*G.uBeat.value);beaconC.material.uniforms.uAmt.value=P.beacon*0.55;
+  beaconP.visible=beaconC.visible=P.beacon>0.001;
+  // 迟来的光
+  if(P.beam>=0&&P.beam<1){const s=pPos.clone().addScaledVector(sunDir,28),e=pPos.clone().addScaledVector(sunDir,1.02);const k=Math.pow(P.beam,1.6);
+    const h=vl(s,e,k);beamU.uH.value.copy(h);beamU.uT.value.copy(h).addScaledVector(sunDir,9);beamU.uAmt.value=1;beam.visible=beamHead.visible=true;
+    beamHead.position.copy(h);beamHead.material.uniforms.uAmt.value=1.6}else{beam.visible=beamHead.visible=false}
+  // 后期
+  renderPass.scene=isOrr?orrery:scene;
+  const trailOn=P.trail>0.001;after.enabled=trailOn;after.uniforms.damp.value=(trailOn&&!afterWasOn)?0:P.trail;afterWasOn=trailOn;
+  bloom.strength=P.bloom*0.55;
+  const fu=finalPass.uniforms;fu.uTime.value=t;fu.uExposure.value=P.exposure;fu.uWarm.value=P.warm;fu.uScope.value=P.scope;fu.uFade.value=P.fade;
+  fu.uFlash.value=P.flash;fu.uSunVis.value=sunVis;fu.uSat.value=P.sat*1.04;
+  // 界面
+  const lt=t-S.seg.start;
+  if(started||qs.has('t'))showLyric(S.seg,lt);
+  const sn=SECNAME[S.seg.sec];ui.sec.innerHTML=sn[0]?`${sn[0]}<b>${sn[1]}</b>`:'';ui.sec.style.opacity=(S.seg.sec==='intro'||S.seg.sec==='end')?0:1;
+  ui.hud.style.opacity=P.scope>0.35?P.scope:0;
+  ui.counter.style.opacity=P.counter?(lt>0.3&&lt<S.seg.dur-0.3?1:0):0;if(P.counter)ui.cn.textContent=Math.round(P.earthLaps);
+  ui.title.style.opacity=(started&&S.seg.shot==='intro'&&S.u>0.32&&S.u<0.92)?1:0;
+  ui.end.style.opacity=(S.seg.shot==='end'&&S.u>0.12)?1:0;
+  ui.tm.textContent=fmt(t);if(document.activeElement!==ui.sk)ui.sk.value=t;
+}
+
+function frame(){
+  requestAnimationFrame(frame);
+  let t=clock.now();
+  if(clock.playing&&t>=TOTAL){clock.pause();clock.base=TOTAL-0.001;t=clock.base;ui.ctl.classList.add('show')}
+  if(clock.playing&&clock.useAudio)score.tick(t);
+  if(!started&&!qs.has('t'))t=10.2;
+  update(t);
+  composer.render();
+}
+if(qs.has('t')){started=true;ui.start.classList.add('hide');clock.base=+qs.get('t')||0;if(qs.has('play'))clock.play()}
+MV.bench=(t,n=10)=>{const gl=renderer.getContext();const px=new Uint8Array(4);update(t);composer.render();gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,px);
+  const t0=performance.now();for(let i=0;i<n;i++){update(t+i/60);composer.render();gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,px)}return +((performance.now()-t0)/n).toFixed(1)};
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
